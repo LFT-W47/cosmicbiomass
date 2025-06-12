@@ -39,6 +39,26 @@ class DLRBiomassSource(BiomassDataSource):
                 uncertainty_available=True,
                 crs="EPSG:32632"
             ),
+            "agbd_2018": DatasetInfo(
+                id="agbd_2018",
+                name="AGBD 2018",
+                description="DLR Global Aboveground Biomass Density 2018",
+                spatial_resolution=100.0,
+                temporal_coverage="2018-01-01/2018-12-31",
+                units="Mg/ha",
+                uncertainty_available=True,
+                crs="EPSG:32632"
+            ),
+            "agbd_2019": DatasetInfo(
+                id="agbd_2019",
+                name="AGBD 2019",
+                description="DLR Global Aboveground Biomass Density 2019",
+                spatial_resolution=100.0,
+                temporal_coverage="2019-01-01/2019-12-31",
+                units="Mg/ha",
+                uncertainty_available=True,
+                crs="EPSG:32632"
+            ),
             "agbd_2020": DatasetInfo(
                 id="agbd_2020", 
                 name="AGBD 2020",
@@ -55,6 +75,26 @@ class DLRBiomassSource(BiomassDataSource):
                 description="DLR Global Aboveground Biomass Density 2021",
                 spatial_resolution=100.0,
                 temporal_coverage="2021-01-01/2021-12-31",
+                units="Mg/ha",
+                uncertainty_available=True,
+                crs="EPSG:32632"
+            ),
+            "agbd_2022": DatasetInfo(
+                id="agbd_2022",
+                name="AGBD 2022",
+                description="DLR Global Aboveground Biomass Density 2022",
+                spatial_resolution=100.0,
+                temporal_coverage="2022-01-01/2022-12-31",
+                units="Mg/ha",
+                uncertainty_available=True,
+                crs="EPSG:32632"
+            ),
+            "agbd_2023": DatasetInfo(
+                id="agbd_2023",
+                name="AGBD 2023",
+                description="DLR Global Aboveground Biomass Density 2023",
+                spatial_resolution=100.0,
+                temporal_coverage="2023-01-01/2023-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
                 crs="EPSG:32632"
