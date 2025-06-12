@@ -5,25 +5,48 @@ A modern Python package for extracting and analyzing aboveground biomass density
 ## Features
 
 - 🌍 **Geospatial biomass extraction** from DLR STAC data sources (2017-2023)
-- 📊 **Footprint-weighted statistics** with circular and Gaussian weighting schemes  
+- 📊 **Footprint-weighted statistics** with circular, Gaussian, and CRNS weighting schemes  
+- 🔬 **CRNS weighting function** implementing Schrön et al. (2017) for cosmic ray neutron sensing
 - 🎯 **High precision analysis** with uncertainty quantification and outlier detection
 - 🏗️ **Modular architecture** with pluggable data sources and processing components
 - ✅ **89% test coverage** with comprehensive unit and integration tests
-- 🐍 **Modern Python 3.9+** with type hints, Poetry dependency management, and `src/` layout
+- 🐍 **Modern Python 3.10+** with type hints, Poetry dependency management, and `src/` layout
 
 ## Quick Start
 
 ### Installation
 
+#### Option 1: Install from GitHub (Recommended)
+
+```bash
+# Install directly from GitHub using pip
+pip install git+https://github.com/LFT-W47/cosmicbiomass.git
+
+# Or install in development mode for contributions
+pip install -e git+https://github.com/LFT-W47/cosmicbiomass.git#egg=cosmicbiomass
+```
+
+#### Option 2: Install with conda/mamba
+
+```bash
+# First install dependencies via conda
+conda install -c conda-forge numpy xarray matplotlib pyproj
+
+# Then install cosmicbiomass from GitHub
+pip install git+https://github.com/LFT-W47/cosmicbiomass.git
+```
+
+#### Option 3: Development Installation
+
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/LFT-W47/cosmicbiomass.git
 cd cosmicbiomass
 
 # Install Poetry if you haven't already
 pip install poetry
 
-# Install dependencies
+# Install dependencies and package in development mode
 poetry install
 ```
 
@@ -82,7 +105,7 @@ Extract footprint-weighted biomass statistics for a location.
 - `radius` (float): Footprint radius in meters (default: 500)
 - `source` (str): Data source name (default: "dlr")
 - `dataset` (str): Dataset identifier like "agbd_2018" (default: "agbd_2021")
-- `footprint_shape` (str): "circular" or "gaussian" (default: "circular")
+- `footprint_shape` (str): "circular", "gaussian", or "crns" (default: "crns")
 - `include_uncertainty` (bool): Include uncertainty estimation (default: True)
 - `outlier_method` (str): "iqr", "zscore", or None for outlier detection
 
@@ -132,8 +155,16 @@ poetry run pytest tests/test_core.py -v
 ### Custom Footprint Analysis
 
 ```python
-# Gaussian footprint with outlier detection
+# CRNS footprint (default) - Schrön et al. (2017) weighting
 result = cosmicbiomass.get_average_biomass(
+    lat=52.09, lon=11.226,
+    radius=500,
+    footprint_shape="crns",  # Cosmic ray neutron sensing weighting
+    dataset="agbd_2020"
+)
+
+# Gaussian footprint with outlier detection
+result_gaussian = cosmicbiomass.get_average_biomass(
     lat=52.09, lon=11.226,
     radius=500,
     footprint_shape="gaussian",
