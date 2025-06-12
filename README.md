@@ -5,7 +5,7 @@ A modern Python package for extracting and analyzing aboveground biomass density
 ## Features
 
 - 🌍 **Geospatial biomass extraction** from DLR STAC data sources (2017-2023)
-- 📊 **Footprint-weighted statistics** with circular, Gaussian, and CRNS weighting schemes  
+- 📊 **Footprint-weighted statistics** with circular, Gaussian, and CRNS weighting schemes
 - 🔬 **CRNS weighting function** implementing Schrön et al. (2017) for cosmic ray neutron sensing
 - 🎯 **High precision analysis** with uncertainty quantification and outlier detection
 - 🏗️ **Modular architecture** with pluggable data sources and processing components
@@ -20,10 +20,10 @@ A modern Python package for extracting and analyzing aboveground biomass density
 
 ```bash
 # Install directly from GitHub using pip
-pip install git+https://github.com/LFT-W47/cosmicbiomass.git
+pip install git+https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
 
 # Or install in development mode for contributions
-pip install -e git+https://github.com/LFT-W47/cosmicbiomass.git#egg=cosmicbiomass
+pip install -e git+hhttps://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git#egg=cosmicbiomass
 ```
 
 #### Option 2: Install with conda/mamba
@@ -101,6 +101,7 @@ print("Available years:", list(datasets['datasets'].keys()))
 Extract footprint-weighted biomass statistics for a location.
 
 **Parameters:**
+
 - `lat`, `lon` (float): Center coordinates in WGS84 decimal degrees
 - `radius` (float): Footprint radius in meters (default: 500)
 - `source` (str): Data source name (default: "dlr")
@@ -201,7 +202,7 @@ for year in years:
 ### DLR Global Aboveground Biomass Density
 
 - **Coverage**: 2017-2023 annual products
-- **Resolution**: 10m spatial resolution  
+- **Resolution**: 10m spatial resolution
 - **Units**: Mg/ha (megagrams per hectare)
 - **Uncertainty**: Available via data spread analysis
 - **Access**: STAC catalog via `cubo` integration
