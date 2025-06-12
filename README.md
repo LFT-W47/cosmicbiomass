@@ -33,14 +33,14 @@ pip install -e git+hhttps://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cos
 conda install -c conda-forge numpy xarray matplotlib pyproj
 
 # Then install cosmicbiomass from GitHub
-pip install git+https://github.com/LFT-W47/cosmicbiomass.git
+pip install git+https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
 ```
 
 #### Option 3: Development Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/LFT-W47/cosmicbiomass.git
+git clone https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
 cd cosmicbiomass
 
 # Install Poetry if you haven't already
