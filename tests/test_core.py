@@ -1,354 +1,345 @@
 """
-Unit tests for cosmicbiomass package core functionality.
-
-These tests focus on individual functions and classes in isolation,
-using mocks to avoid external dependencies and ensure fast execution.
+Comprehensive unit tests for the core module.
 """
 
-import logging
+import pytest
+import numpy as np
+import xarray as xr
 from unittest.mock import Mock, patch, MagicMock
 
-import numpy as np
-import pytest
-import xarray as xr
-from shapely.geometry import Point
-
-import cosmicbiomass
+from cosmicbiomass.core import get_average_biomass, validate_coordinates, list_available_datasets
+from cosmicbiomass.config import BiomassConfig, FootprintConfig
+from cosmicbiomass.processing import BiomassStatistics
 
 
-class TestCosmicBiomassConfig:
-    """Test the Pydantic configuration model."""
+class TestValidateCoordinates:
+    """Test coordinate validation function."""
     
-    @pytest.mark.unit
-    def test_default_config_creation(self):
-        """Test that default configuration is created correctly."""
-        config = cosmicbiomass.CosmicBiomassConfig()
-        
-        assert config.default_stac_url == "https://geoservice.dlr.de/eoc/ogc/stac/v1"
-        assert config.default_collection == "FOREST_STRUCTURE_DE_AGBD_P1Y"
-        assert config.default_resolution == 10
-        assert config.default_upsample_factor == 10
-        assert config.edge_size_buffer == 1.5
-        assert config.n_jobs == -1
+    def test_valid_coordinates(self):
+        """Test validation of valid coordinates."""
+        assert validate_coordinates(52.09, 11.226) is True
+        assert validate_coordinates(0.0, 0.0) is True
+        assert validate_coordinates(-90.0, -180.0) is True
+        assert validate_coordinates(90.0, 180.0) is True
     
-    @pytest.mark.unit
-    def test_config_validation(self):
-        """Test configuration validation with invalid values."""
-        # Test negative resolution
+    def test_invalid_latitude(self):
+        """Test validation of invalid latitude."""
+        assert validate_coordinates(91.0, 11.226) is False
+        assert validate_coordinates(-91.0, 11.226) is False
+    
+    def test_invalid_longitude(self):
+        """Test validation of invalid longitude."""
+        assert validate_coordinates(52.09, 181.0) is False
+        assert validate_coordinates(52.09, -181.0) is False
+
+
+class TestParameterValidation:
+    """Test parameter validation."""
+    
+    def test_invalid_radius(self):
+        """Test that invalid radius values are rejected."""
         with pytest.raises(ValueError):
-            cosmicbiomass.CosmicBiomassConfig(default_resolution=-1)
+            FootprintConfig(radius=-100.0)
         
-        # Test zero upsample factor
         with pytest.raises(ValueError):
-            cosmicbiomass.CosmicBiomassConfig(default_upsample_factor=0)
-        
-        # Test edge size buffer less than 1
-        with pytest.raises(ValueError):
-            cosmicbiomass.CosmicBiomassConfig(edge_size_buffer=0.5)
+            FootprintConfig(radius=0.0)
     
-    @pytest.mark.unit
-    def test_config_modification(self):
-        """Test that configuration can be modified."""
-        config = cosmicbiomass.CosmicBiomassConfig()
-        config.default_resolution = 20
-        config.n_jobs = 4
-        
-        assert config.default_resolution == 20
-        assert config.n_jobs == 4
+    def test_invalid_footprint_shape(self):
+        """Test that invalid footprint shapes are rejected."""
+        with pytest.raises(ValueError, match="Footprint shape must be"):
+            FootprintConfig(radius=100.0, shape="invalid")
 
 
-class TestDLRBiomassSource:
-    """Test the DLR biomass data source implementation."""
+class TestGetAverageBiomass:
+    """Comprehensive tests for get_average_biomass function."""
     
-    @pytest.mark.unit
-    def test_initialization_with_defaults(self):
-        """Test DLR source initialization with default values."""
-        source = cosmicbiomass.DLRBiomassSource()
+    def create_mock_biomass_data(self, shape=(10, 10), add_uncertainty=False):
+        """Create mock biomass data for testing."""
+        # Create coordinates
+        lat_coords = np.linspace(52.0, 52.1, shape[0])
+        lon_coords = np.linspace(11.0, 11.1, shape[1])
         
-        assert source.stac_url == cosmicbiomass.config.default_stac_url
-        assert source.collection == cosmicbiomass.config.default_collection
-        assert source.resolution == cosmicbiomass.config.default_resolution
+        # Create biomass data with realistic values
+        biomass_values = np.random.uniform(50, 200, shape)
+        
+        if add_uncertainty:
+            # Create data with uncertainty band
+            uncertainty_values = biomass_values * 0.1  # 10% uncertainty
+            data = xr.Dataset({
+                'agbd_cog': (('lat', 'lon'), biomass_values),
+                'uncertainty': (('lat', 'lon'), uncertainty_values)
+            }, coords={'lat': lat_coords, 'lon': lon_coords})
+        else:
+            # Create data without uncertainty
+            data = xr.Dataset({
+                'agbd_cog': (('lat', 'lon'), biomass_values)
+            }, coords={'lat': lat_coords, 'lon': lon_coords})
+        
+        return data
     
-    @pytest.mark.unit
-    def test_initialization_with_custom_values(self):
-        """Test DLR source initialization with custom values."""
-        custom_params = {
-            "stac_url": "https://custom.stac.url",
-            "collection": "CUSTOM_COLLECTION",
-            "start_date": "2020-01-01",
-            "end_date": "2022-12-31",
-            "resolution": 20,
+    def create_mock_statistics(self, mean=150.0, std=25.0, count=100, uncertainty_mean=None):
+        """Create mock BiomassStatistics object."""
+        return BiomassStatistics(
+            mean=mean,
+            std=std,
+            median=mean,  # Added missing median field
+            min=mean - 2*std,
+            max=mean + 2*std,
+            count=count,
+            uncertainty_mean=uncertainty_mean,
+            uncertainty_std=uncertainty_mean * 0.1 if uncertainty_mean else None
+        )
+    
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    @patch('cosmicbiomass.core.StatisticsProcessor')
+    @patch('cosmicbiomass.core.validate_footprint_coverage')
+    def test_basic_biomass_calculation(self, mock_validate, mock_stats_proc, mock_footprint_proc, mock_get_source):
+        """Test basic biomass calculation with mocked components."""
+        # Setup mocks
+        mock_data_source = Mock()
+        mock_biomass_data = self.create_mock_biomass_data()
+        mock_data_source.load_data.return_value = mock_biomass_data
+        mock_data_source.get_metadata.return_value = {
+            'dataset_info': {
+                'units': 'Mg/ha',
+                'spatial_resolution': '100m',
+                'temporal_coverage': '2021'
+            }
         }
+        mock_get_source.return_value = mock_data_source
         
-        source = cosmicbiomass.DLRBiomassSource(**custom_params)
+        # Mock footprint processor
+        mock_fp_instance = Mock()
+        mock_weights = np.ones((10, 10))
+        mock_fp_instance.compute_footprint_weights.return_value = mock_weights
+        mock_footprint_proc.return_value = mock_fp_instance
         
-        assert source.stac_url == custom_params["stac_url"]
-        assert source.collection == custom_params["collection"]
-        assert source.start_date == custom_params["start_date"]
-        assert source.end_date == custom_params["end_date"]
-        assert source.resolution == custom_params["resolution"]
+        # Mock statistics processor
+        mock_stats_instance = Mock()
+        mock_stats = self.create_mock_statistics()
+        mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
+        mock_stats_proc.return_value = mock_stats_instance
+        
+        mock_validate.return_value = True
+        
+        # Execute function
+        result = get_average_biomass(52.09, 11.226, radius=500.0)
+        
+        # Verify calls
+        mock_get_source.assert_called_once()
+        mock_data_source.load_data.assert_called_once()
+        mock_fp_instance.compute_footprint_weights.assert_called_once_with(mock_biomass_data, 52.09, 11.226)
+        mock_stats_instance.compute_weighted_statistics.assert_called_once()
+        
+        # Verify result structure
+        assert 'biomass_statistics' in result
+        assert 'location' in result
+        assert 'footprint' in result
+        assert 'data_info' in result
+        assert 'processing' in result
+        assert 'summary' in result
+        
+        # Verify location data
+        assert result['location']['latitude'] == 52.09
+        assert result['location']['longitude'] == 11.226
+        assert result['location']['radius_m'] == 500.0
+        
+        # Verify summary data
+        assert result['summary']['mean_biomass_Mg_ha'] == 150.0
+        assert result['summary']['std_biomass_Mg_ha'] == 25.0
+        assert result['summary']['pixel_count'] == 100
     
-    @pytest.mark.unit
-    @pytest.mark.mock
-    def test_extract_cube_success(self, mock_cubo_create, mock_biomass_cube):
-        """Test successful cube extraction."""
-        source = cosmicbiomass.DLRBiomassSource()
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    @patch('cosmicbiomass.core.StatisticsProcessor')
+    @patch('cosmicbiomass.core.validate_footprint_coverage')
+    def test_biomass_with_uncertainty_band(self, mock_validate, mock_stats_proc, mock_footprint_proc, mock_get_source):
+        """Test biomass calculation with separate uncertainty band."""
+        # Setup mocks with uncertainty data
+        mock_data_source = Mock()
+        mock_biomass_data = self.create_mock_biomass_data(add_uncertainty=True)
+        mock_data_source.load_data.return_value = mock_biomass_data
+        mock_data_source.get_metadata.return_value = {'dataset_info': {}}
+        mock_get_source.return_value = mock_data_source
         
-        result = source.extract_cube(lat=51.0, lon=13.0, edge_size=1000)
+        # Mock processors
+        mock_fp_instance = Mock()
+        mock_weights = np.ones((10, 10))
+        mock_fp_instance.compute_footprint_weights.return_value = mock_weights
+        mock_footprint_proc.return_value = mock_fp_instance
         
-        assert result is mock_biomass_cube
-        mock_cubo_create.assert_called_once()
+        mock_stats_instance = Mock()
+        mock_stats = self.create_mock_statistics(uncertainty_mean=15.0)
+        mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
+        mock_stats_proc.return_value = mock_stats_instance
         
-        # Verify cubo.create was called with correct parameters
-        call_args = mock_cubo_create.call_args[1]
-        assert call_args["lat"] == 51.0
-        assert call_args["lon"] == 13.0
-        assert call_args["edge_size"] == 1000
-        assert call_args["gee"] is False
+        mock_validate.return_value = True
+        
+        # Execute function
+        result = get_average_biomass(52.09, 11.226, include_uncertainty=True)
+        
+        # Verify uncertainty in result
+        assert result['summary']['uncertainty_Mg_ha'] == 15.0
+        assert result['summary']['uncertainty_source'] == 'uncertainty_band'
     
-    @pytest.mark.unit
-    @pytest.mark.mock
-    def test_extract_cube_failure(self):
-        """Test cube extraction failure handling."""
-        source = cosmicbiomass.DLRBiomassSource()
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    @patch('cosmicbiomass.core.StatisticsProcessor')
+    @patch('cosmicbiomass.core.validate_footprint_coverage')
+    def test_biomass_without_uncertainty_band(self, mock_validate, mock_stats_proc, mock_footprint_proc, mock_get_source):
+        """Test biomass calculation without uncertainty band (uses std)."""
+        # Setup mocks without uncertainty data
+        mock_data_source = Mock()
+        mock_biomass_data = self.create_mock_biomass_data(add_uncertainty=False)
+        mock_data_source.load_data.return_value = mock_biomass_data
+        mock_data_source.get_metadata.return_value = {'dataset_info': {}}
+        mock_get_source.return_value = mock_data_source
         
-        with patch('cosmicbiomass.cubo.create') as mock_create:
-            mock_create.side_effect = Exception("STAC connection failed")
-            
-            with pytest.raises(RuntimeError, match="DLR cube extraction failed"):
-                source.extract_cube(lat=51.0, lon=13.0, edge_size=1000)
+        # Mock processors
+        mock_fp_instance = Mock()
+        mock_weights = np.ones((10, 10))
+        mock_fp_instance.compute_footprint_weights.return_value = mock_weights
+        mock_footprint_proc.return_value = mock_fp_instance
+        
+        mock_stats_instance = Mock()
+        mock_stats = self.create_mock_statistics(uncertainty_mean=None)  # No uncertainty band
+        mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
+        mock_stats_proc.return_value = mock_stats_instance
+        
+        mock_validate.return_value = True
+        
+        # Execute function
+        result = get_average_biomass(52.09, 11.226, include_uncertainty=True)
+        
+        # Verify uncertainty uses std
+        assert result['summary']['uncertainty_Mg_ha'] == 25.0  # Same as std
+        assert result['summary']['uncertainty_source'] == 'data_spread'
     
-    @pytest.mark.unit
-    def test_get_source_info(self):
-        """Test source information retrieval."""
-        source = cosmicbiomass.DLRBiomassSource()
-        info = source.get_source_info()
+    @patch('cosmicbiomass.core.get_source')
+    def test_data_loading_error(self, mock_get_source):
+        """Test handling of data loading errors."""
+        mock_data_source = Mock()
+        mock_data_source.load_data.side_effect = Exception("Data loading failed")
+        mock_get_source.return_value = mock_data_source
         
-        assert isinstance(info, dict)
-        assert "name" in info
-        assert "provider" in info
-        assert "units" in info
-        assert "description" in info
-        assert info["units"] == "Mg/ha"
-
-
-class TestBiomassSourceRegistry:
-    """Test the biomass source registry."""
+        with pytest.raises(Exception, match="Data loading failed"):
+            get_average_biomass(52.09, 11.226)
     
-    @pytest.mark.unit
-    def test_registry_initialization(self):
-        """Test registry initialization with built-in sources."""
-        registry = cosmicbiomass.BiomassSourceRegistry()
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    def test_footprint_computation_error(self, mock_footprint_proc, mock_get_source):
+        """Test handling of footprint computation errors."""
+        # Setup data source mock
+        mock_data_source = Mock()
+        mock_data_source.load_data.return_value = self.create_mock_biomass_data()
+        mock_get_source.return_value = mock_data_source
         
-        assert "dlr" in registry.list_sources()
-        assert len(registry.list_sources()) == 1
+        # Mock footprint processor to raise error
+        mock_fp_instance = Mock()
+        mock_fp_instance.compute_footprint_weights.side_effect = Exception("Footprint computation failed")
+        mock_footprint_proc.return_value = mock_fp_instance
+        
+        with pytest.raises(Exception, match="Footprint computation failed"):
+            get_average_biomass(52.09, 11.226)
     
-    @pytest.mark.unit
-    def test_register_new_source(self):
-        """Test registering a new source."""
-        registry = cosmicbiomass.BiomassSourceRegistry()
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    @patch('cosmicbiomass.core.StatisticsProcessor')
+    def test_statistics_computation_error(self, mock_stats_proc, mock_footprint_proc, mock_get_source):
+        """Test handling of statistics computation errors."""
+        # Setup data source and footprint processor mocks
+        mock_data_source = Mock()
+        mock_data_source.load_data.return_value = self.create_mock_biomass_data()
+        mock_get_source.return_value = mock_data_source
         
-        # Create mock source class
-        class MockSource:
-            def extract_cube(self, lat, lon, edge_size, **kwargs):
-                pass
-            
-            def get_source_info(self):
-                return {"name": "Mock Source"}
+        mock_fp_instance = Mock()
+        mock_fp_instance.compute_footprint_weights.return_value = np.ones((10, 10))
+        mock_footprint_proc.return_value = mock_fp_instance
         
-        registry.register_source("mock", MockSource)
+        # Mock statistics processor to raise error
+        mock_stats_instance = Mock()
+        mock_stats_instance.compute_weighted_statistics.side_effect = Exception("Statistics computation failed")
+        mock_stats_proc.return_value = mock_stats_instance
         
-        assert "mock" in registry.list_sources()
-        assert len(registry.list_sources()) == 2
+        with pytest.raises(Exception, match="Statistics computation failed"):
+            get_average_biomass(52.09, 11.226)
     
-    @pytest.mark.unit
-    def test_register_duplicate_source(self):
-        """Test registering a source with existing name."""
-        registry = cosmicbiomass.BiomassSourceRegistry()
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    @patch('cosmicbiomass.core.StatisticsProcessor')
+    @patch('cosmicbiomass.core.validate_footprint_coverage')
+    def test_custom_parameters(self, mock_validate, mock_stats_proc, mock_footprint_proc, mock_get_source):
+        """Test biomass calculation with custom parameters."""
+        # Setup mocks
+        mock_data_source = Mock()
+        mock_biomass_data = self.create_mock_biomass_data()
+        mock_data_source.load_data.return_value = mock_biomass_data
+        mock_data_source.get_metadata.return_value = {'dataset_info': {}}
+        mock_get_source.return_value = mock_data_source
         
-        class MockSource:
-            def extract_cube(self, lat, lon, edge_size, **kwargs):
-                pass
-            
-            def get_source_info(self):
-                return {}
+        mock_fp_instance = Mock()
+        mock_fp_instance.compute_footprint_weights.return_value = np.ones((10, 10))
+        mock_footprint_proc.return_value = mock_fp_instance
         
-        with pytest.raises(ValueError, match="already registered"):
-            registry.register_source("dlr", MockSource)
-    
-    @pytest.mark.unit
-    def test_register_invalid_source(self):
-        """Test registering source without required methods."""
-        registry = cosmicbiomass.BiomassSourceRegistry()
+        mock_stats_instance = Mock()
+        mock_stats = self.create_mock_statistics()
+        mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
+        mock_stats_proc.return_value = mock_stats_instance
         
-        class InvalidSource:
-            pass  # Missing required methods
+        mock_validate.return_value = True
         
-        with pytest.raises(ValueError, match="implement BiomassDataSource protocol"):
-            registry.register_source("invalid", InvalidSource)
-    
-    @pytest.mark.unit
-    def test_get_source(self):
-        """Test getting source instance."""
-        registry = cosmicbiomass.BiomassSourceRegistry()
-        source = registry.get_source("dlr")
-        
-        assert isinstance(source, cosmicbiomass.DLRBiomassSource)
-    
-    @pytest.mark.unit
-    def test_get_unknown_source(self):
-        """Test getting unknown source."""
-        registry = cosmicbiomass.BiomassSourceRegistry()
-        
-        with pytest.raises(ValueError, match="Unknown source"):
-            registry.get_source("unknown")
-
-
-class TestMainAPI:
-    """Test the main get_average_biomass API function."""
-    
-    @pytest.mark.unit
-    def test_input_validation_success(self, sample_coordinates):
-        """Test that valid inputs pass validation."""
-        # This should not raise any exceptions during validation
-        lat = sample_coordinates["lat"]
-        lon = sample_coordinates["lon"]
-        radius = sample_coordinates["footprint_radius"]
-        
-        # We'll mock the actual processing to test only validation
-        with patch('cosmicbiomass._extract_biomass_cube'), \
-             patch('cosmicbiomass._compute_footprint_weights'), \
-             patch('cosmicbiomass._compute_weighted_stats', return_value=(150.0, 25.0)):
-            
-            result = cosmicbiomass.get_average_biomass(lat, lon, radius)
-            assert len(result) == 2
-            assert all(isinstance(x, float) for x in result)
-    
-    @pytest.mark.unit
-    @pytest.mark.parametrize("invalid_coords", [
-        {"lat": 91.0, "lon": 0.0, "footprint_radius": 100.0},   # Invalid lat
-        {"lat": -91.0, "lon": 0.0, "footprint_radius": 100.0},  # Invalid lat
-        {"lat": 0.0, "lon": 181.0, "footprint_radius": 100.0},  # Invalid lon
-        {"lat": 0.0, "lon": -181.0, "footprint_radius": 100.0}, # Invalid lon
-        {"lat": 50.0, "lon": 10.0, "footprint_radius": -100.0}, # Negative radius
-        {"lat": 50.0, "lon": 10.0, "footprint_radius": 0.0},    # Zero radius
-    ])
-    def test_input_validation_failures(self, invalid_coords):
-        """Test that invalid inputs raise appropriate errors."""
-        with pytest.raises(ValueError):
-            cosmicbiomass.get_average_biomass(**invalid_coords)
-    
-    @pytest.mark.unit
-    @pytest.mark.mock
-    def test_successful_execution(self, sample_coordinates, mock_cubo_create, 
-                                  mock_biomass_cube, mock_rasterio_features):
-        """Test successful execution of the complete workflow."""
-        result = cosmicbiomass.get_average_biomass(**sample_coordinates)
-        
-        assert len(result) == 2
-        mean_biomass, uncertainty = result
-        
-        assert isinstance(mean_biomass, float)
-        assert isinstance(uncertainty, float)
-        assert mean_biomass >= 0  # Biomass should be non-negative
-        assert uncertainty >= 0   # Uncertainty should be non-negative
-    
-    @pytest.mark.unit
-    @pytest.mark.mock
-    def test_error_propagation(self, sample_coordinates):
-        """Test that errors in processing are properly propagated."""
-        with patch('cosmicbiomass._extract_biomass_cube') as mock_extract:
-            mock_extract.side_effect = Exception("Data extraction failed")
-            
-            with pytest.raises(RuntimeError, match="Biomass extraction failed"):
-                cosmicbiomass.get_average_biomass(**sample_coordinates)
-
-
-class TestUtilityFunctions:
-    """Test utility functions for biomass processing."""
-    
-    @pytest.mark.unit
-    def test_compute_fractional_coverage_mask(self, mock_rasterio_features):
-        """Test fractional coverage mask computation."""
-        # Create test geometry and coordinates
-        point = Point(0, 0)
-        buffer_geom = point.buffer(100)  # 100 meter radius
-        
-        raster_x = np.linspace(-200, 200, 20)
-        raster_y = np.linspace(-200, 200, 20)
-        
-        mask = cosmicbiomass._compute_fractional_coverage_mask(
-            buffer_geom, raster_x, raster_y, upsample=2
+        # Execute with custom parameters
+        result = get_average_biomass(
+            52.09, 11.226,
+            radius=1000.0,
+            source="custom_source",
+            dataset="custom_dataset",
+            footprint_shape="gaussian",
+            outlier_method="iqr",
+            include_uncertainty=False
         )
         
-        assert mask.shape == (20, 20)
-        assert mask.dtype == np.float32
-        assert 0 <= mask.min() <= mask.max() <= 1
-        assert np.any(mask > 0)  # Should have some coverage
-    
-    @pytest.mark.unit
-    def test_compute_weighted_stats(self, mock_biomass_cube, mock_fractional_weights):
-        """Test weighted statistics computation."""
-        mean, uncertainty = cosmicbiomass._compute_weighted_stats(
-            mock_biomass_cube, mock_fractional_weights
-        )
-        
-        assert isinstance(mean, float)
-        assert isinstance(uncertainty, float)
-        assert mean >= 0
-        assert uncertainty >= 0
-    
-    @pytest.mark.unit
-    def test_compute_weighted_stats_no_valid_data(self, mock_biomass_cube):
-        """Test weighted statistics with no valid data."""
-        # Create weights with all zeros
-        zero_weights = np.zeros((20, 20))
-        
-        mean, uncertainty = cosmicbiomass._compute_weighted_stats(
-            mock_biomass_cube, zero_weights
-        )
-        
-        assert np.isnan(mean)
-        assert np.isnan(uncertainty)
+        # Verify custom parameters are used
+        assert result['location']['radius_m'] == 1000.0
+        assert result['data_info']['source'] == "custom_source"
+        assert result['data_info']['dataset'] == "custom_dataset"
+        assert result['processing']['outlier_method'] == "iqr"
+        assert result['processing']['include_uncertainty'] is False
 
 
-class TestLogging:
-    """Test logging configuration and behavior."""
+class TestListAvailableDatasets:
+    """Test the list_available_datasets function."""
     
-    @pytest.mark.unit
-    def test_logger_exists(self):
-        """Test that package logger is properly configured."""
-        assert cosmicbiomass.logger.name == "cosmicbiomass"
-        assert cosmicbiomass.logger.level == logging.INFO
-    
-    @pytest.mark.unit
-    def test_logging_during_operation(self, caplog_debug, sample_coordinates,
-                                      mock_cubo_create, mock_biomass_cube,
-                                      mock_rasterio_features):
-        """Test that appropriate log messages are generated."""
-        cosmicbiomass.get_average_biomass(**sample_coordinates)
+    @patch('cosmicbiomass.core.get_source')
+    def test_list_datasets(self, mock_get_source):
+        """Test listing available datasets."""
+        # Setup mock data source
+        mock_data_source = Mock()
+        mock_datasets = {
+            'agbd_2021': Mock(),
+            'agbd_2020': Mock()
+        }
+        # Make the mock objects have a dict() method
+        for dataset in mock_datasets.values():
+            dataset.dict.return_value = {
+                'name': 'test_dataset',
+                'units': 'Mg/ha',
+                'description': 'Test dataset'
+            }
         
-        # Check that key log messages were generated
-        log_messages = [record.message for record in caplog_debug.records]
+        mock_data_source.get_available_datasets.return_value = mock_datasets
+        mock_get_source.return_value = mock_data_source
         
-        # Should log the start of extraction
-        assert any("Starting biomass extraction" in msg for msg in log_messages)
-        # Should log completion
-        assert any("Biomass extraction completed" in msg for msg in log_messages)
-
-
-class TestGlobalConfig:
-    """Test global configuration management."""
-    
-    @pytest.mark.unit
-    def test_global_config_exists(self):
-        """Test that global config instance exists and is accessible."""
-        assert cosmicbiomass.config is not None
-        assert isinstance(cosmicbiomass.config, cosmicbiomass.CosmicBiomassConfig)
-    
-    @pytest.mark.unit
-    def test_global_registry_exists(self):
-        """Test that global source registry exists and is initialized."""
-        assert cosmicbiomass.source_registry is not None
-        assert isinstance(cosmicbiomass.source_registry, cosmicbiomass.BiomassSourceRegistry)
-        assert len(cosmicbiomass.source_registry.list_sources()) >= 1
+        # Execute function
+        result = list_available_datasets(source="dlr")
+        
+        # Verify result
+        assert result['source'] == "dlr"
+        assert 'datasets' in result
+        assert 'agbd_2021' in result['datasets']
+        assert 'agbd_2020' in result['datasets']
+        
+        # Verify calls
+        mock_get_source.assert_called_once()
+        mock_data_source.get_available_datasets.assert_called_once()
