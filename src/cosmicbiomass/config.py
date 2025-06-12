@@ -56,13 +56,13 @@ class FootprintConfig(BaseModel):
     )
     
     shape: str = Field(
-        default="circular",
-        description="Footprint shape ('circular' or 'gaussian')"
+        default="crns",
+        description="Footprint shape ('circular', 'gaussian', or 'crns')"
     )
     
     def __init__(self, **kwargs):
-        if 'shape' in kwargs and kwargs['shape'] not in ['circular', 'gaussian']:
-            raise ValueError("Footprint shape must be 'circular' or 'gaussian'")
+        if 'shape' in kwargs and kwargs['shape'] not in ['circular', 'gaussian', 'crns']:
+            raise ValueError("Footprint shape must be 'circular', 'gaussian', or 'crns'")
         super().__init__(**kwargs)
 
 

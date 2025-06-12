@@ -18,13 +18,13 @@ def get_average_biomass(
     source: str = "dlr",
     dataset: str = "agbd_2021",
     data_dir: str = "data",
-    footprint_shape: str = "circular",
+    footprint_shape: str = "crns",
     include_uncertainty: bool = True,
     outlier_method: Optional[str] = None,
     **kwargs
 ) -> Dict[str, Any]:
     """
-    Get average biomass for a circular footprint around specified coordinates.
+    Get average biomass for a footprint around specified coordinates.
     
     Args:
         lat: Center latitude in WGS84 decimal degrees
@@ -33,7 +33,7 @@ def get_average_biomass(
         source: Data source name (default: "dlr")
         dataset: Dataset identifier (default: "agbd_2021")
         data_dir: Directory containing biomass data files
-        footprint_shape: Shape of footprint ("circular" or "gaussian")
+        footprint_shape: Shape of footprint ("crns", "circular" or "gaussian")
         include_uncertainty: Whether to include uncertainty statistics
         outlier_method: Outlier detection method ("iqr", "zscore", or None)
         **kwargs: Additional configuration parameters

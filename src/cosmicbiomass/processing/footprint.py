@@ -80,6 +80,8 @@ class FootprintProcessor:
             weights = self._circular_footprint(distances)
         elif self.config.shape == "gaussian":
             weights = self._gaussian_footprint(distances)
+        elif self.config.shape == "crns":
+            weights = self._crns_footprint(distances)
         else:
             raise ValueError(f"Unsupported footprint shape: {self.config.shape}")
         
@@ -108,6 +110,32 @@ class FootprintProcessor:
         if hasattr(self.config, 'apply_cutoff') and self.config.apply_cutoff:
             weights[distances > self.config.radius] = 0.0
             
+        return weights
+    
+    def _crns_footprint(self, distances: np.ndarray) -> np.ndarray:
+        """
+        Compute CRNS footprint weights using Schrön et al. (2017) formula.
+        
+        W(r) = 30*exp(−r/1.6) + exp(−r/100)
+        Final weight = W(r)/r for r > 1, W(r) for r ≤ 1
+        
+        Reference: Schrön et al. (2017), applied in Fersch et al. (2018)
+        """
+        # Schrön et al. (2017) weighting function
+        w_r = 30 * np.exp(-distances / 1.6) + np.exp(-distances / 100)
+        
+        # Apply distance normalization: W(r)/r for r > 1
+        # For r ≤ 1, use r = 1 to avoid division by zero
+        r_normalized = np.maximum(distances, 1.0)
+        weights = w_r / r_normalized
+        
+        # Apply radius cutoff if specified
+        if self.config.radius > 0:
+            weights[distances > self.config.radius] = 0.0
+        
+        logger.debug(f"CRNS weights - max: {np.max(weights):.4f}, "
+                    f"mean: {np.mean(weights[weights > 0]):.4f}")
+        
         return weights
 
 
