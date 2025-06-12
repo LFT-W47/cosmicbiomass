@@ -182,8 +182,12 @@ Thumbs.db
 # Debug and demo scripts can be kept for development
 debug_footprint.py
 plot_results.py
+simple_demo.py
+test_import.py
+_cosmicbiomass/*
 
 # Generated plots (uncomment if you don't want to track generated plots)
 *.png
 *.jpg
 *.pdf
+*.html
