@@ -20,7 +20,7 @@ class DLRBiomassSource(BiomassDataSource):
         # DLR STAC configuration
         self.stac_url = "https://geoservice.dlr.de/eoc/ogc/stac/v1"
         self.collection = "FOREST_STRUCTURE_DE_AGBD_P1Y"
-        self.resolution = 10  # meters
+        self.resolution = 10
     
     @property
     def source_name(self) -> str:
@@ -33,7 +33,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2017",
                 name="AGBD 2017",
                 description="DLR Global Aboveground Biomass Density 2017",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2017-01-01/2017-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
@@ -43,7 +43,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2018",
                 name="AGBD 2018",
                 description="DLR Global Aboveground Biomass Density 2018",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2018-01-01/2018-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
@@ -53,7 +53,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2019",
                 name="AGBD 2019",
                 description="DLR Global Aboveground Biomass Density 2019",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2019-01-01/2019-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
@@ -63,7 +63,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2020", 
                 name="AGBD 2020",
                 description="DLR Global Aboveground Biomass Density 2020",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2020-01-01/2020-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
@@ -73,7 +73,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2021",
                 name="AGBD 2021", 
                 description="DLR Global Aboveground Biomass Density 2021",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2021-01-01/2021-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
@@ -83,7 +83,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2022",
                 name="AGBD 2022",
                 description="DLR Global Aboveground Biomass Density 2022",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2022-01-01/2022-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
@@ -93,7 +93,7 @@ class DLRBiomassSource(BiomassDataSource):
                 id="agbd_2023",
                 name="AGBD 2023",
                 description="DLR Global Aboveground Biomass Density 2023",
-                spatial_resolution=100.0,
+                spatial_resolution=10.0,
                 temporal_coverage="2023-01-01/2023-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
