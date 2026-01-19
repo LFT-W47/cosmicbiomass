@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def get_average_biomass(
     lat: float,
     lon: float,
-    radius: float = 500.0,
+    radius: float = 200.0,
     source: str = "dlr",
     dataset: str = "agbd_2021",
     data_dir: str = "data",
@@ -29,7 +29,7 @@ def get_average_biomass(
     Args:
         lat: Center latitude in WGS84 decimal degrees
         lon: Center longitude in WGS84 decimal degrees  
-        radius: Footprint radius in meters (default: 500)
+        radius: Footprint radius in meters (default: 200m)
         source: Data source name (default: "dlr")
         dataset: Dataset identifier (default: "agbd_2021")
         data_dir: Directory containing biomass data files
