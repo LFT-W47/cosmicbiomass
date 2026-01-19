@@ -85,8 +85,8 @@ print(f"Mean AGBD: {biomass_mgha:.1f} ± {uncertainty_mgha:.1f} Mg/ha")
 
 # Access detailed information
 print(f"Footprint coverage: {result['footprint']['effective_pixels']} pixels")
-print(f"Data source: {result['metadata']['source']}")
-print(f"Dataset: {result['metadata']['dataset_id']}")
+print(f"Data source: {result['data_info']['source']}")
+print(f"Dataset: {result['data_info']['dataset']}")
 ```
 
 ### Available Datasets
