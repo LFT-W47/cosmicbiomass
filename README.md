@@ -10,7 +10,7 @@ A modern Python package for extracting and analyzing aboveground biomass density
 - 🎯 **High precision analysis** with uncertainty quantification and outlier detection
 - 🏗️ **Modular architecture** with pluggable data sources and processing components
 - ✅ **89% test coverage** with comprehensive unit and integration tests
-- 🐍 **Modern Python 3.10+** with type hints, Poetry dependency management, and `src/` layout
+- 🐍 **Modern Python 3.10+** with type hints, uv-managed environments, and `src/` layout
 
 ## Quick Start
 
@@ -36,18 +36,24 @@ conda install -c conda-forge numpy xarray matplotlib pyproj
 pip install git+https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
 ```
 
-#### Option 3: Development Installation
+#### Option 3: Development Installation (uv)
 
 ```bash
 # Clone the repository
 git clone https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
 cd cosmicbiomass
 
-# Install Poetry if you haven't already
-pip install poetry
+# Create a virtual environment
+uv venv .venv
 
-# Install dependencies and package in development mode
-poetry install
+# Activate the environment
+source .venv/bin/activate
+
+# Install the package in development mode
+uv pip install -e .
+
+# Lock dependencies for reproducibility
+uv lock
 ```
 
 ### Reproducible Workflow Example
@@ -126,7 +132,7 @@ Validate latitude/longitude coordinates are within valid ranges.
 ```
 cosmicbiomass/
 ├── README.md
-├── pyproject.toml              # Poetry configuration
+├── pyproject.toml              # Python project configuration
 ├── src/
 │   └── cosmicbiomass/
 │       ├── __init__.py         # Public API
@@ -141,15 +147,37 @@ cosmicbiomass/
 ## Testing
 
 ```bash
+### Dependency Lock
+
+Use the lockfile for reproducible environments:
+
+```bash
+uv lock
+```
+
+### Testing
+
+```bash
 # Run all tests
-poetry run pytest
+uv run pytest
 
 # Run with coverage report
-poetry run pytest --cov=cosmicbiomass --cov-report=html
+uv run pytest --cov=cosmicbiomass --cov-report=html
 
 # Run specific test modules
-poetry run pytest tests/test_core.py -v
+uv run pytest tests/test_core.py -v
 ```
+
+## Publishing to PyPI
+
+```bash
+# Build wheel and sdist
+uv build
+
+# Publish to PyPI (requires credentials)
+uv publish
+```
+
 
 ## Advanced Usage
 
@@ -212,7 +240,7 @@ for year in years:
 - Follow PEP 8 and modern Python best practices
 - Add tests for new features (maintain >85% coverage)
 - Use f-strings, pathlib, and type hints
-- Run `poetry run pytest` before submitting changes
+- Run `uv run pytest` before submitting changes
 
 ## License
 
