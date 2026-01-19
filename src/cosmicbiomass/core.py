@@ -1,7 +1,9 @@
 """Core API functions for biomass analysis."""
 
 import logging
-from typing import Dict, Any, Optional, Tuple
+import re
+from datetime import date, datetime
+from typing import Dict, Any, Optional
 import numpy as np
 
 from .config import BiomassConfig, FootprintConfig
@@ -186,6 +188,94 @@ def get_average_biomass(
     
     logger.info("Biomass analysis completed successfully")
     return result
+
+
+def _coerce_year(value: int | str | date | datetime) -> int:
+    """Coerce a year from int, ISO date strings, or datetime/date objects."""
+    if isinstance(value, int):
+        return value
+    if isinstance(value, (datetime, date)):
+        return value.year
+    if isinstance(value, str):
+        match = re.search(r"(\d{4})", value)
+        if match:
+            return int(match.group(1))
+    raise ValueError(f"Unsupported date/year value: {value!r}")
+
+
+def _build_dataset_id(dataset: str, year: int, multiple_years: bool) -> str:
+    """Build a dataset id for a given year."""
+    if "{year}" in dataset:
+        return dataset.format(year=year)
+    if re.search(r"\d{4}", dataset):
+        if multiple_years:
+            raise ValueError(
+                "Dataset includes a fixed year. Use a template like 'agbd_{year}' for ranges."
+            )
+        return dataset
+    return f"{dataset}_{year}"
+
+
+def get_average_biomass_timeseries(
+    lat: float,
+    lon: float,
+    radius: float = 200.0,
+    source: str = "dlr",
+    dataset: str = "agbd_{year}",
+    start_time: int | str | date | datetime = 2021,
+    end_time: int | str | date | datetime = 2021,
+    data_dir: str = "data",
+    footprint_shape: str = "crns",
+    include_uncertainty: bool = True,
+    outlier_method: Optional[str] = None,
+    **kwargs
+) -> list[dict[str, Any]]:
+    """
+    Get a multi-year time series of average biomass for a footprint.
+
+    Args:
+        lat: Center latitude in WGS84 decimal degrees
+        lon: Center longitude in WGS84 decimal degrees
+        radius: Footprint radius in meters (default: 200m)
+        source: Data source name (default: "dlr")
+        dataset: Dataset template (default: "agbd_{year}")
+        start_time: Start year/date (int or date string)
+        end_time: End year/date (int or date string)
+        data_dir: Directory containing biomass data files
+        footprint_shape: Shape of footprint ("crns", "circular" or "gaussian")
+        include_uncertainty: Whether to include uncertainty statistics
+        outlier_method: Outlier detection method ("iqr", "zscore", or None)
+        **kwargs: Additional configuration parameters
+
+    Returns:
+        Ordered list of dicts with keys: year, dataset, result.
+    """
+    start_year = _coerce_year(start_time)
+    end_year = _coerce_year(end_time)
+    if start_year > end_year:
+        raise ValueError("start_time must be <= end_time")
+
+    years = range(start_year, end_year + 1)
+    multiple_years = start_year != end_year
+    series: list[dict[str, Any]] = []
+
+    for year in years:
+        dataset_id = _build_dataset_id(dataset, year, multiple_years)
+        result = get_average_biomass(
+            lat=lat,
+            lon=lon,
+            radius=radius,
+            source=source,
+            dataset=dataset_id,
+            data_dir=data_dir,
+            footprint_shape=footprint_shape,
+            include_uncertainty=include_uncertainty,
+            outlier_method=outlier_method,
+            **kwargs,
+        )
+        series.append({"year": year, "dataset": dataset_id, "result": result})
+
+    return series
 
 
 def list_available_datasets(source: str = "dlr", data_dir: str = "data") -> Dict[str, Any]:

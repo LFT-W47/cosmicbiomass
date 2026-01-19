@@ -31,7 +31,12 @@ if not logger.handlers:
     logger.addHandler(console_handler)
 
 # Import main API functions
-from .core import get_average_biomass, list_available_datasets, validate_coordinates
+from .core import (
+    get_average_biomass,
+    get_average_biomass_timeseries,
+    list_available_datasets,
+    validate_coordinates,
+)
 from .config import BiomassConfig, FootprintConfig
 from .registry import list_available_sources, register_source
 from .sources import BiomassDataSource, DLRBiomassSource
@@ -41,6 +46,7 @@ from .processing import BiomassStatistics, FootprintProcessor, StatisticsProcess
 __all__ = [
     # Main functions
     'get_average_biomass',
+    'get_average_biomass_timeseries',
     'list_available_datasets', 
     'validate_coordinates',
     'list_available_sources',

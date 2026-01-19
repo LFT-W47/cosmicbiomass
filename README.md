@@ -54,6 +54,7 @@ uv pip install -e .
 
 # Lock dependencies for reproducibility
 uv lock
+
 ```
 
 ### Reproducible Workflow Example
@@ -144,10 +145,7 @@ cosmicbiomass/
 └── tests/                      # Comprehensive test suite (89% coverage)
 ```
 
-## Testing
-
-```bash
-### Dependency Lock
+## Dependency Lock
 
 Use the lockfile for reproducible environments:
 
@@ -155,7 +153,7 @@ Use the lockfile for reproducible environments:
 uv lock
 ```
 
-### Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -209,20 +207,23 @@ print(f"Total weight: {result['footprint']['total_weight']:.1f}")
 ### Multi-year Analysis
 
 ```python
-years = [2017, 2018, 2019, 2020, 2021, 2022, 2023]
-biomass_time_series = []
+series = cosmicbiomass.get_average_biomass_timeseries(
+    lat=52.09,
+    lon=11.226,
+    radius=240,
+    dataset="agbd_{year}",
+    start_time="2017-01-01",
+    end_time="2023-12-31",
+)
 
-for year in years:
-    result = cosmicbiomass.get_average_biomass(
-        lat=52.09, lon=11.226, 
-        radius=240,
-        dataset=f"agbd_{year}"
-    )
-    biomass_time_series.append({
-        'year': year,
-        'biomass': result['summary']['mean_biomass_Mg_ha'],
-        'uncertainty': result['summary']['uncertainty_Mg_ha']
-    })
+biomass_time_series = [
+    {
+        "year": entry["year"],
+        "biomass": entry["result"]["summary"]["mean_biomass_Mg_ha"],
+        "uncertainty": entry["result"]["summary"]["uncertainty_Mg_ha"],
+    }
+    for entry in series
+]
 ```
 
 ## Data Sources
