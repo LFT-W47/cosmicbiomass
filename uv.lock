@@ -435,7 +435,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.7.0,<2.0.0" },
     { name = "scipy", specifier = ">=1.11.0,<2.0.0" },
     { name = "seaborn", specifier = ">=0.13.2,<0.14.0" },
-    { name = "setuptools", specifier = ">=80.9.0,<81.0.0" },
+    { name = "setuptools", specifier = ">=80.9.0" },
     { name = "shapely", specifier = ">=2.0.0,<3.0.0" },
 ]
 
