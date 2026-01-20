@@ -189,7 +189,7 @@ class TestValidateFootprintCoverage:
         weights = np.ones((10, 10))  # All weights = 1
 
         result = validate_footprint_coverage(weights, min_coverage=0.5)
-        assert result is True
+        assert bool(result) is True
 
     def test_insufficient_coverage(self):
         """Test validation with insufficient coverage."""
@@ -197,14 +197,14 @@ class TestValidateFootprintCoverage:
         weights[0, 0] = 1  # Only one non-zero weight
 
         result = validate_footprint_coverage(weights, min_coverage=0.5)
-        assert result is False
+        assert bool(result) is False
 
     def test_empty_weights(self):
         """Test validation with empty weight array."""
         weights = np.array([])
 
         result = validate_footprint_coverage(weights)
-        assert result is False
+        assert bool(result) is False
 
     def test_edge_case_coverage(self):
         """Test validation at coverage threshold."""
@@ -212,10 +212,10 @@ class TestValidateFootprintCoverage:
         weights[:5, :2] = 1  # 10% coverage
 
         result = validate_footprint_coverage(weights, min_coverage=0.1)
-        assert result is True
+        assert bool(result) is True
 
         result = validate_footprint_coverage(weights, min_coverage=0.11)
-        assert result is False
+        assert bool(result) is False
 
 
 class TestStatisticsProcessor:
