@@ -13,6 +13,7 @@ from .config import BiomassConfig, FootprintConfig
 from .core import (
     get_average_biomass,
     get_average_biomass_timeseries,
+    get_seasonal_biomass_timeseries,
     list_available_datasets,
     validate_coordinates,
 )
@@ -47,6 +48,7 @@ __all__ = [
     # Main functions
     'get_average_biomass',
     'get_average_biomass_timeseries',
+    'get_seasonal_biomass_timeseries',
     'list_available_datasets',
     'validate_coordinates',
     'list_available_sources',
