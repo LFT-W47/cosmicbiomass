@@ -44,9 +44,12 @@ def test_seasonal_timeseries_infers_frequency(mock_timeseries):
     assert df.index.min().year == 2020
     assert df.index.max().year == 2021
 
-    annual_means = df["agbd_interpolated"].groupby(df.index.year).mean()
-    assert np.isclose(annual_means.loc[2020], 100.0, atol=1e-6)
-    assert np.isclose(annual_means.loc[2021], 120.0, atol=1e-6)
+    annual_max = df["agbd_interpolated"].groupby(df.index.year).max()
+    annual_min = df["agbd_interpolated"].groupby(df.index.year).min()
+    assert np.isclose(annual_max.loc[2020], 100.0, atol=1e-6)
+    assert np.isclose(annual_max.loc[2021], 120.0, atol=1e-6)
+    assert np.isclose(annual_min.loc[2020], 80.0, atol=1e-6)
+    assert np.isclose(annual_min.loc[2021], 96.0, atol=1e-6)
 
 
 @patch("cosmicbiomass.core.get_average_biomass_timeseries")
@@ -65,7 +68,8 @@ def test_seasonal_timeseries_respects_target_frequency(mock_timeseries):
         target_frequency="1H",
     )
 
-    assert df.index.freq is not None or pd.infer_freq(df.index) == "H"
+    assert df.index.freq is not None or pd.infer_freq(df.index) == "h"
     assert df.index.min().year == 2020
     assert df.index.max().year == 2020
-    assert np.isclose(df["agbd_interpolated"].mean(), 80.0, atol=1e-6)
+    assert np.isclose(df["agbd_interpolated"].min(), 64.0, atol=1e-6)
+    assert np.isclose(df["agbd_interpolated"].max(), 80.0, atol=1e-6)

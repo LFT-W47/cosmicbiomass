@@ -234,6 +234,8 @@ def _infer_target_index(
         return pd.DatetimeIndex(reference_index)
 
     freq = target_frequency or pd.infer_freq(vi_series.index)
+    if isinstance(freq, str):
+        freq = freq.lower()
     if freq is None:
         return pd.DatetimeIndex(vi_series.index)
 
