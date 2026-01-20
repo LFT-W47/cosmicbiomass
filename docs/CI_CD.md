@@ -45,6 +45,22 @@ Notes:
 - Use alpha tags only when you want a TestPyPI publish.
 - Delete old alpha tags if needed to reduce noise.
 
+## Tag cleanup (recommended)
+
+Keep only a small set of alpha tags (e.g., latest 1–3). Remove old tags locally and remotely.
+
+Examples:
+
+```bash
+# Delete local tags
+git tag -d v0.1.0a1 v0.1.0a2
+
+# Delete remote tags
+git push origin :refs/tags/v0.1.0a1 :refs/tags/v0.1.0a2
+```
+
+Tip: avoid creating tags for every CI run. Only tag when you actually want a publish.
+
 ## Jobs
 
 1. **pytest**: installs dev deps and runs the test suite.

@@ -51,7 +51,7 @@ publish_testpypi:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+a\d+$/'
   script:
     - ls -la dist
-    - uv publish --directory dist --publish-url https://test.pypi.org/legacy/ --token "$TESTPYPI_TOKEN"
+    - uv publish --publish-url https://test.pypi.org/legacy/ --token "$TESTPYPI_TOKEN" dist/*.whl dist/*.tar.gz
 
 publish_pypi:
   stage: publish
@@ -64,4 +64,4 @@ publish_pypi:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
   script:
     - ls -la dist
-    - uv publish --directory dist --token "$PYPI_TOKEN"
+    - uv publish --token "$PYPI_TOKEN" dist/*.whl dist/*.tar.gz
