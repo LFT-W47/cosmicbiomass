@@ -411,7 +411,7 @@ wheels = [
 
 [[package]]
 name = "cosmicbiomass"
-version = "0.1.0a2"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "cubo" },
@@ -453,39 +453,39 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cubo", specifier = ">=2024.8.0,<2025.0.0" },
-    { name = "earthengine-api", specifier = ">=1.1.4,<2.0.0" },
-    { name = "geopandas", specifier = ">=0.14.0,<0.15.0" },
-    { name = "joblib", specifier = ">=1.3.0,<2.0.0" },
-    { name = "numpy", specifier = ">=1.24.0,<2.0.0" },
-    { name = "pandas", specifier = ">=2.0.0,<3.0.0" },
-    { name = "planetary-computer", specifier = ">=1.0.0,<2.0.0" },
-    { name = "pydantic", specifier = ">=2.0.0,<3.0.0" },
-    { name = "pystac-client", specifier = ">=0.8.0,<1.0.0" },
-    { name = "rasterio", specifier = ">=1.3.0,<2.0.0" },
-    { name = "rioxarray", specifier = ">=0.19.0,<0.20.0" },
-    { name = "scikit-learn", specifier = ">=1.7.0,<2.0.0" },
-    { name = "scipy", specifier = ">=1.11.0,<2.0.0" },
-    { name = "seaborn", specifier = ">=0.13.2,<0.14.0" },
+    { name = "cubo", specifier = ">=2024.8.0" },
+    { name = "earthengine-api", specifier = ">=1.1.4" },
+    { name = "geopandas", specifier = ">=0.14.0" },
+    { name = "joblib", specifier = ">=1.3.0" },
+    { name = "numpy", specifier = ">=1.24.0" },
+    { name = "pandas", specifier = ">=2.0.0" },
+    { name = "planetary-computer", specifier = ">=1.0.0" },
+    { name = "pydantic", specifier = ">=2.0.0" },
+    { name = "pystac-client", specifier = ">=0.8.0" },
+    { name = "rasterio", specifier = ">=1.3.0" },
+    { name = "rioxarray", specifier = ">=0.19.0" },
+    { name = "scikit-learn", specifier = ">=1.7.0" },
+    { name = "scipy", specifier = ">=1.11.0" },
+    { name = "seaborn", specifier = ">=0.13.2" },
     { name = "setuptools", specifier = ">=80.9.0" },
-    { name = "shapely", specifier = ">=2.0.0,<3.0.0" },
-    { name = "stackstac", specifier = ">=0.5.1,<1.0.0" },
-    { name = "xee", specifier = ">=0.0.13,<1.0.0" },
+    { name = "shapely", specifier = ">=2.0.0" },
+    { name = "stackstac", specifier = ">=0.5.1" },
+    { name = "xee", specifier = ">=0.0.13" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "black", specifier = ">=24.0.0,<25.0.0" },
-    { name = "hypothesis", specifier = ">=6.90.0,<7.0.0" },
-    { name = "matplotlib", specifier = ">=3.10.3,<4.0.0" },
-    { name = "mypy", specifier = ">=1.8.0,<2.0.0" },
-    { name = "pre-commit", specifier = ">=3.6.0,<4.0.0" },
-    { name = "pytest", specifier = ">=8.0.0,<9.0.0" },
-    { name = "pytest-asyncio", specifier = ">=0.23.0,<0.24.0" },
-    { name = "pytest-cov", specifier = ">=4.0.0,<5.0.0" },
-    { name = "pytest-mock", specifier = ">=3.12.0,<4.0.0" },
-    { name = "pytest-xdist", specifier = ">=3.5.0,<4.0.0" },
-    { name = "ruff", specifier = ">=0.1.0,<0.2.0" },
+    { name = "black", specifier = ">=24.0.0" },
+    { name = "hypothesis", specifier = ">=6.90.0" },
+    { name = "matplotlib", specifier = ">=3.10.3" },
+    { name = "mypy", specifier = ">=1.8.0" },
+    { name = "pre-commit", specifier = ">=3.6.0" },
+    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "pytest-mock", specifier = ">=3.12.0" },
+    { name = "pytest-xdist", specifier = ">=3.5.0" },
+    { name = "ruff", specifier = ">=0.1.0" },
 ]
 
 [[package]]
