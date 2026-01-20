@@ -2,31 +2,35 @@
 Comprehensive unit tests for the core module.
 """
 
-import pytest
-import numpy as np
-import xarray as xr
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-from cosmicbiomass.core import get_average_biomass, validate_coordinates, list_available_datasets
-from cosmicbiomass.config import BiomassConfig, FootprintConfig
+import numpy as np
+import pytest
+import xarray as xr
+from cosmicbiomass.config import FootprintConfig
+from cosmicbiomass.core import (
+    get_average_biomass,
+    list_available_datasets,
+    validate_coordinates,
+)
 from cosmicbiomass.processing import BiomassStatistics
 
 
 class TestValidateCoordinates:
     """Test coordinate validation function."""
-    
+
     def test_valid_coordinates(self):
         """Test validation of valid coordinates."""
         assert validate_coordinates(52.09, 11.226) is True
         assert validate_coordinates(0.0, 0.0) is True
         assert validate_coordinates(-90.0, -180.0) is True
         assert validate_coordinates(90.0, 180.0) is True
-    
+
     def test_invalid_latitude(self):
         """Test validation of invalid latitude."""
         assert validate_coordinates(91.0, 11.226) is False
         assert validate_coordinates(-91.0, 11.226) is False
-    
+
     def test_invalid_longitude(self):
         """Test validation of invalid longitude."""
         assert validate_coordinates(52.09, 181.0) is False
@@ -35,15 +39,15 @@ class TestValidateCoordinates:
 
 class TestParameterValidation:
     """Test parameter validation."""
-    
+
     def test_invalid_radius(self):
         """Test that invalid radius values are rejected."""
         with pytest.raises(ValueError):
             FootprintConfig(radius=-100.0)
-        
+
         with pytest.raises(ValueError):
             FootprintConfig(radius=0.0)
-    
+
     def test_invalid_footprint_shape(self):
         """Test that invalid footprint shapes are rejected."""
         with pytest.raises(ValueError, match="Footprint shape must be"):
@@ -52,16 +56,16 @@ class TestParameterValidation:
 
 class TestGetAverageBiomass:
     """Comprehensive tests for get_average_biomass function."""
-    
+
     def create_mock_biomass_data(self, shape=(10, 10), add_uncertainty=False):
         """Create mock biomass data for testing."""
         # Create coordinates
         lat_coords = np.linspace(52.0, 52.1, shape[0])
         lon_coords = np.linspace(11.0, 11.1, shape[1])
-        
+
         # Create biomass data with realistic values
         biomass_values = np.random.uniform(50, 200, shape)
-        
+
         if add_uncertainty:
             # Create data with uncertainty band
             uncertainty_values = biomass_values * 0.1  # 10% uncertainty
@@ -74,9 +78,9 @@ class TestGetAverageBiomass:
             data = xr.Dataset({
                 'agbd_cog': (('lat', 'lon'), biomass_values)
             }, coords={'lat': lat_coords, 'lon': lon_coords})
-        
+
         return data
-    
+
     def create_mock_statistics(self, mean=150.0, std=25.0, count=100, uncertainty_mean=None):
         """Create mock BiomassStatistics object."""
         return BiomassStatistics(
@@ -89,7 +93,7 @@ class TestGetAverageBiomass:
             uncertainty_mean=uncertainty_mean,
             uncertainty_std=uncertainty_mean * 0.1 if uncertainty_mean else None
         )
-    
+
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
     @patch('cosmicbiomass.core.StatisticsProcessor')
@@ -108,30 +112,30 @@ class TestGetAverageBiomass:
             }
         }
         mock_get_source.return_value = mock_data_source
-        
+
         # Mock footprint processor
         mock_fp_instance = Mock()
         mock_weights = np.ones((10, 10))
         mock_fp_instance.compute_footprint_weights.return_value = mock_weights
         mock_footprint_proc.return_value = mock_fp_instance
-        
+
         # Mock statistics processor
         mock_stats_instance = Mock()
         mock_stats = self.create_mock_statistics()
         mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
         mock_stats_proc.return_value = mock_stats_instance
-        
+
         mock_validate.return_value = True
-        
+
         # Execute function
         result = get_average_biomass(52.09, 11.226, radius=500.0)
-        
+
         # Verify calls
         mock_get_source.assert_called_once()
         mock_data_source.load_data.assert_called_once()
         mock_fp_instance.compute_footprint_weights.assert_called_once_with(mock_biomass_data, 52.09, 11.226)
         mock_stats_instance.compute_weighted_statistics.assert_called_once()
-        
+
         # Verify result structure
         assert 'biomass_statistics' in result
         assert 'location' in result
@@ -139,17 +143,17 @@ class TestGetAverageBiomass:
         assert 'data_info' in result
         assert 'processing' in result
         assert 'summary' in result
-        
+
         # Verify location data
         assert result['location']['latitude'] == 52.09
         assert result['location']['longitude'] == 11.226
         assert result['location']['radius_m'] == 500.0
-        
+
         # Verify summary data
         assert result['summary']['mean_biomass_Mg_ha'] == 150.0
         assert result['summary']['std_biomass_Mg_ha'] == 25.0
         assert result['summary']['pixel_count'] == 100
-    
+
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
     @patch('cosmicbiomass.core.StatisticsProcessor')
@@ -162,27 +166,27 @@ class TestGetAverageBiomass:
         mock_data_source.load_data.return_value = mock_biomass_data
         mock_data_source.get_metadata.return_value = {'dataset_info': {}}
         mock_get_source.return_value = mock_data_source
-        
+
         # Mock processors
         mock_fp_instance = Mock()
         mock_weights = np.ones((10, 10))
         mock_fp_instance.compute_footprint_weights.return_value = mock_weights
         mock_footprint_proc.return_value = mock_fp_instance
-        
+
         mock_stats_instance = Mock()
         mock_stats = self.create_mock_statistics(uncertainty_mean=15.0)
         mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
         mock_stats_proc.return_value = mock_stats_instance
-        
+
         mock_validate.return_value = True
-        
+
         # Execute function
         result = get_average_biomass(52.09, 11.226, include_uncertainty=True)
-        
+
         # Verify uncertainty in result
         assert result['summary']['uncertainty_Mg_ha'] == 15.0
         assert result['summary']['uncertainty_source'] == 'uncertainty_band'
-    
+
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
     @patch('cosmicbiomass.core.StatisticsProcessor')
@@ -195,37 +199,37 @@ class TestGetAverageBiomass:
         mock_data_source.load_data.return_value = mock_biomass_data
         mock_data_source.get_metadata.return_value = {'dataset_info': {}}
         mock_get_source.return_value = mock_data_source
-        
+
         # Mock processors
         mock_fp_instance = Mock()
         mock_weights = np.ones((10, 10))
         mock_fp_instance.compute_footprint_weights.return_value = mock_weights
         mock_footprint_proc.return_value = mock_fp_instance
-        
+
         mock_stats_instance = Mock()
         mock_stats = self.create_mock_statistics(uncertainty_mean=None)  # No uncertainty band
         mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
         mock_stats_proc.return_value = mock_stats_instance
-        
+
         mock_validate.return_value = True
-        
+
         # Execute function
         result = get_average_biomass(52.09, 11.226, include_uncertainty=True)
-        
+
         # Verify uncertainty uses std
         assert result['summary']['uncertainty_Mg_ha'] == 25.0  # Same as std
         assert result['summary']['uncertainty_source'] == 'data_spread'
-    
+
     @patch('cosmicbiomass.core.get_source')
     def test_data_loading_error(self, mock_get_source):
         """Test handling of data loading errors."""
         mock_data_source = Mock()
         mock_data_source.load_data.side_effect = Exception("Data loading failed")
         mock_get_source.return_value = mock_data_source
-        
+
         with pytest.raises(Exception, match="Data loading failed"):
             get_average_biomass(52.09, 11.226)
-    
+
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
     def test_footprint_computation_error(self, mock_footprint_proc, mock_get_source):
@@ -234,15 +238,15 @@ class TestGetAverageBiomass:
         mock_data_source = Mock()
         mock_data_source.load_data.return_value = self.create_mock_biomass_data()
         mock_get_source.return_value = mock_data_source
-        
+
         # Mock footprint processor to raise error
         mock_fp_instance = Mock()
         mock_fp_instance.compute_footprint_weights.side_effect = Exception("Footprint computation failed")
         mock_footprint_proc.return_value = mock_fp_instance
-        
+
         with pytest.raises(Exception, match="Footprint computation failed"):
             get_average_biomass(52.09, 11.226)
-    
+
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
     @patch('cosmicbiomass.core.StatisticsProcessor')
@@ -252,19 +256,19 @@ class TestGetAverageBiomass:
         mock_data_source = Mock()
         mock_data_source.load_data.return_value = self.create_mock_biomass_data()
         mock_get_source.return_value = mock_data_source
-        
+
         mock_fp_instance = Mock()
         mock_fp_instance.compute_footprint_weights.return_value = np.ones((10, 10))
         mock_footprint_proc.return_value = mock_fp_instance
-        
+
         # Mock statistics processor to raise error
         mock_stats_instance = Mock()
         mock_stats_instance.compute_weighted_statistics.side_effect = Exception("Statistics computation failed")
         mock_stats_proc.return_value = mock_stats_instance
-        
+
         with pytest.raises(Exception, match="Statistics computation failed"):
             get_average_biomass(52.09, 11.226)
-    
+
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
     @patch('cosmicbiomass.core.StatisticsProcessor')
@@ -277,18 +281,18 @@ class TestGetAverageBiomass:
         mock_data_source.load_data.return_value = mock_biomass_data
         mock_data_source.get_metadata.return_value = {'dataset_info': {}}
         mock_get_source.return_value = mock_data_source
-        
+
         mock_fp_instance = Mock()
         mock_fp_instance.compute_footprint_weights.return_value = np.ones((10, 10))
         mock_footprint_proc.return_value = mock_fp_instance
-        
+
         mock_stats_instance = Mock()
         mock_stats = self.create_mock_statistics()
         mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
         mock_stats_proc.return_value = mock_stats_instance
-        
+
         mock_validate.return_value = True
-        
+
         # Execute with custom parameters
         result = get_average_biomass(
             52.09, 11.226,
@@ -299,7 +303,7 @@ class TestGetAverageBiomass:
             outlier_method="iqr",
             include_uncertainty=False
         )
-        
+
         # Verify custom parameters are used
         assert result['location']['radius_m'] == 1000.0
         assert result['data_info']['source'] == "custom_source"
@@ -310,7 +314,7 @@ class TestGetAverageBiomass:
 
 class TestListAvailableDatasets:
     """Test the list_available_datasets function."""
-    
+
     @patch('cosmicbiomass.core.get_source')
     def test_list_datasets(self, mock_get_source):
         """Test listing available datasets."""
@@ -327,19 +331,19 @@ class TestListAvailableDatasets:
                 'units': 'Mg/ha',
                 'description': 'Test dataset'
             }
-        
+
         mock_data_source.get_available_datasets.return_value = mock_datasets
         mock_get_source.return_value = mock_data_source
-        
+
         # Execute function
         result = list_available_datasets(source="dlr")
-        
+
         # Verify result
         assert result['source'] == "dlr"
         assert 'datasets' in result
         assert 'agbd_2021' in result['datasets']
         assert 'agbd_2020' in result['datasets']
-        
+
         # Verify calls
         mock_get_source.assert_called_once()
         mock_data_source.get_available_datasets.assert_called_once()

@@ -8,6 +8,18 @@ with built-in support for footprint weighting and neutron correction calculation
 import logging
 import warnings
 
+# Import main API functions
+from .config import BiomassConfig, FootprintConfig
+from .core import (
+    get_average_biomass,
+    get_average_biomass_timeseries,
+    list_available_datasets,
+    validate_coordinates,
+)
+from .processing import BiomassStatistics, FootprintProcessor, StatisticsProcessor
+from .registry import list_available_sources, register_source
+from .sources import BiomassDataSource, DLRBiomassSource
+
 # Package metadata
 __version__ = "0.1.0a1"
 __author__ = "LFT-W47"
@@ -21,7 +33,7 @@ logger.setLevel(logging.INFO)
 if not logger.handlers:
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
-    
+
     # Modern logging format with timestamp and level
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -30,41 +42,29 @@ if not logger.handlers:
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
 
-# Import main API functions
-from .core import (
-    get_average_biomass,
-    get_average_biomass_timeseries,
-    list_available_datasets,
-    validate_coordinates,
-)
-from .config import BiomassConfig, FootprintConfig
-from .registry import list_available_sources, register_source
-from .sources import BiomassDataSource, DLRBiomassSource
-from .processing import BiomassStatistics, FootprintProcessor, StatisticsProcessor
-
 # Public API
 __all__ = [
     # Main functions
     'get_average_biomass',
     'get_average_biomass_timeseries',
-    'list_available_datasets', 
+    'list_available_datasets',
     'validate_coordinates',
     'list_available_sources',
-    
+
     # Configuration
     'BiomassConfig',
     'FootprintConfig',
-    
+
     # Extension points
     'register_source',
     'BiomassDataSource',
     'DLRBiomassSource',
-    
+
     # Processing classes
     'BiomassStatistics',
-    'FootprintProcessor', 
+    'FootprintProcessor',
     'StatisticsProcessor',
-    
+
     # Legacy compatibility (deprecated)
     'CosmicBiomassConfig',
 ]
@@ -74,11 +74,11 @@ __all__ = [
 class CosmicBiomassConfig(BiomassConfig):
     """
     Legacy configuration class - DEPRECATED.
-    
+
     Please use BiomassConfig instead for new code.
     This class is maintained for backward compatibility only.
     """
-    
+
     def __init__(self, **kwargs):
         warnings.warn(
             "CosmicBiomassConfig is deprecated. Use BiomassConfig instead.",
