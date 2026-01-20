@@ -83,7 +83,7 @@ class TestDLRBiomassSource:
         # Check dataset info structure
         dataset_info = datasets["agbd_2021"]
         assert dataset_info.name == "AGBD 2021"
-        assert dataset_info.spatial_resolution == 100.0
+        assert dataset_info.spatial_resolution == 10.0
         assert dataset_info.units == "Mg/ha"
         assert dataset_info.uncertainty_available is True
         assert dataset_info.crs == "EPSG:32632"
@@ -193,7 +193,7 @@ class TestDLRBiomassSource:
         
         assert metadata["source"] == "DLR"
         assert metadata["dataset_info"]["name"] == "AGBD 2021"
-        assert metadata["dataset_info"]["spatial_resolution"] == 100.0
+        assert metadata["dataset_info"]["spatial_resolution"] == 10.0
         assert metadata["dataset_info"]["units"] == "Mg/ha"
         assert metadata["data_format"] == "GeoTIFF COG"
         assert metadata["coordinate_system"] == "EPSG:32632"
@@ -218,7 +218,7 @@ class TestDLRBiomassSource:
         assert result.attrs['source'] == 'DLR'
         assert result.attrs['dataset_id'] == 'agbd_2017'
         assert result.attrs['units'] == 'Mg/ha'
-        assert result.attrs['spatial_resolution'] == 100.0
+        assert result.attrs['spatial_resolution'] == 10.0
 
     @patch('cosmicbiomass.sources.dlr.cubo.create')
     def test_different_years(self, mock_cubo_create):
@@ -389,7 +389,7 @@ class TestDLRBiomassSource:
             'source': 'DLR',
             'dataset_id': 'agbd_2021',
             'units': 'Mg/ha',
-            'spatial_resolution': 100.0,
+            'spatial_resolution': 10.0,
             'temporal_coverage': '2021-01-01/2021-12-31'
         }
         
@@ -413,7 +413,7 @@ class TestDLRBiomassSource:
         assert dataset_info["id"] == "agbd_2020"
         assert dataset_info["name"] == "AGBD 2020"
         assert dataset_info["description"] == "DLR Global Aboveground Biomass Density 2020"
-        assert dataset_info["spatial_resolution"] == 100.0
+        assert dataset_info["spatial_resolution"] == 10.0
         assert dataset_info["temporal_coverage"] == "2020-01-01/2020-12-31"
         assert dataset_info["units"] == "Mg/ha"
         assert dataset_info["uncertainty_available"] is True

@@ -1,13 +1,27 @@
 [project]
 name = "cosmicbiomass"
-version = "0.0.1"
-description = ""
+version = "0.1.0a1"
+description = "Aboveground biomass extraction with footprint-weighted statistics."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
     { name = "LFT-W47", email = "louis.trinkle@gmail.com" },
 ]
 requires-python = ">=3.10"
+keywords = ["biomass", "agbd", "geospatial", "remote-sensing", "crns", "stac"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = [
     "cubo>=2024.8.0,<2025.0.0",
     "pydantic>=2.0.0,<3.0.0",
@@ -23,6 +37,11 @@ dependencies = [
     "setuptools>=80.9.0",
     "scikit-learn>=1.7.0,<2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass"
+Repository = "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass"
+Issues = "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/issues"
 
 [dependency-groups]
 dev = [
@@ -141,6 +160,13 @@ ignore_missing_imports = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cosmicbiomass"]
+
+[tool.hatch.build]
+exclude = [
+    ".venv/**",
+    ".uv-cache/**",
+    "htmlcov/**",
+]
 
 [build-system]
 requires = ["hatchling"]

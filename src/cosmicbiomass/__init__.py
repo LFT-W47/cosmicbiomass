@@ -9,7 +9,7 @@ import logging
 import warnings
 
 # Package metadata
-__version__ = "0.0.1"
+__version__ = "0.1.0a1"
 __author__ = "LFT-W47"
 __email__ = "louis.trinkle@gmail.com"
 
