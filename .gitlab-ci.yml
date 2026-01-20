@@ -17,6 +17,7 @@ default:
     - dind
     - hifis
   before_script:
+    - apt-get update && apt-get install -y --no-install-recommends libexpat1 && rm -rf /var/lib/apt/lists/*
     - python -m pip install --upgrade pip uv
 
 cache:
