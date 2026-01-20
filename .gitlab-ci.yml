@@ -6,6 +6,7 @@ stages:
 variables:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   UV_PYTHON: "python3.12"
   UV_PYTHON_PREFERENCE: "only-system"
   UV_PYTHON_DOWNLOAD: "0"
@@ -21,20 +22,27 @@ default:
     - python -m pip install --upgrade pip uv
 
 cache:
-  key: "$CI_JOB_NAME"
+  key: "uv-cache"
   paths:
     - .uv-cache/
+    - .cache/pip/
 
 pytest:
   stage: test
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: on_success
   script:
-    - uv sync --group dev
+    - uv sync --group dev --frozen
+    - uv run ruff check .
     - uv run pytest
 
 build:
   stage: build
   script:
     - uv build
+    - uv publish --dry-run dist/*.whl dist/*.tar.gz
   artifacts:
     paths:
       - dist/

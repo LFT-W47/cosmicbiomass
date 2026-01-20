@@ -63,10 +63,11 @@ Tip: avoid creating tags for every CI run. Only tag when you actually want a pub
 
 ## Jobs
 
-1. **pytest**: installs dev deps and runs the test suite.
-2. **build**: creates sdist + wheel in `dist/`.
-3. **publish_testpypi**: publishes to TestPyPI on alpha tags.
-4. **publish_pypi**: publishes to PyPI on release tags.
+1. **lint**: runs `ruff` for fast static checks.
+2. **pytest**: installs dev deps and runs the test suite.
+3. **build**: creates sdist + wheel in `dist/` and runs `uv publish --dry-run`.
+4. **publish_testpypi**: publishes to TestPyPI on alpha tags.
+5. **publish_pypi**: publishes to PyPI on release tags.
 
 ## Manual publishing (optional)
 
@@ -77,3 +78,15 @@ uv build
 uv publish --repository testpypi
 uv publish
 ```
+
+## Release checklist
+
+1) Update version in:
+	- [pyproject.toml](../pyproject.toml)
+	- [src/cosmicbiomass/__init__.py](../src/cosmicbiomass/__init__.py)
+2) Ensure `main` is green (lint + tests).
+3) Tag on `main`:
+	- TestPyPI: `vX.Y.ZaN`
+	- PyPI: `vX.Y.Z`
+4) Verify TestPyPI install.
+5) Tag a stable release when ready.
