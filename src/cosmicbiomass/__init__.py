@@ -13,6 +13,7 @@ from .config import BiomassConfig, FootprintConfig
 from .core import (
     get_average_biomass,
     get_average_biomass_timeseries,
+    get_seasonal_biomass_timeseries,
     list_available_datasets,
     validate_coordinates,
 )
@@ -21,7 +22,7 @@ from .registry import list_available_sources, register_source
 from .sources import BiomassDataSource, DLRBiomassSource
 
 # Package metadata
-__version__ = "0.1.0a2"
+__version__ = "0.1.1a2"
 __author__ = "LFT-W47"
 __email__ = "louis.trinkle@gmail.com"
 
@@ -47,6 +48,7 @@ __all__ = [
     # Main functions
     'get_average_biomass',
     'get_average_biomass_timeseries',
+    'get_seasonal_biomass_timeseries',
     'list_available_datasets',
     'validate_coordinates',
     'list_available_sources',

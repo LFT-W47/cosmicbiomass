@@ -6,6 +6,7 @@ from datetime import date, datetime
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 from .config import BiomassConfig, FootprintConfig
 from .processing import (
@@ -14,6 +15,7 @@ from .processing import (
     validate_footprint_coverage,
 )
 from .registry import get_source
+from .sources import fetch_vi_timeseries
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +223,43 @@ def _build_dataset_id(dataset: str, year: int, multiple_years: bool) -> str:
     return f"{dataset}_{year}"
 
 
+def _infer_target_index(
+    vi_series: pd.Series,
+    target_frequency: str | None,
+    reference_index: pd.DatetimeIndex | None,
+    start_time: int | str | date | datetime,
+    end_time: int | str | date | datetime,
+) -> pd.DatetimeIndex:
+    if reference_index is not None:
+        return pd.DatetimeIndex(reference_index)
+
+    freq = target_frequency or pd.infer_freq(vi_series.index)
+    if isinstance(freq, str):
+        freq = freq.lower()
+    if freq is None:
+        return pd.DatetimeIndex(vi_series.index)
+
+    start_year = _coerce_year(start_time)
+    end_year = _coerce_year(end_time)
+    start_dt = pd.Timestamp(year=start_year, month=1, day=1)
+    end_dt = pd.Timestamp(year=end_year, month=12, day=31)
+    return pd.date_range(start=start_dt, end=end_dt, freq=freq)
+
+
+def _scale_series_by_year(values: pd.Series) -> pd.Series:
+    out = values.copy()
+    for _year, seg in out.groupby(out.index.year):
+        if seg.dropna().empty:
+            continue
+        vmin = float(np.nanmin(seg))
+        vmax = float(np.nanmax(seg))
+        if vmax > vmin:
+            out.loc[seg.index] = (seg - vmin) / (vmax - vmin)
+        else:
+            out.loc[seg.index] = 0.0
+    return out.clip(0.0, 1.0)
+
+
 def get_average_biomass_timeseries(
     lat: float,
     lon: float,
@@ -281,6 +320,235 @@ def get_average_biomass_timeseries(
         series.append({"year": year, "dataset": dataset_id, "result": result})
 
     return series
+
+
+def get_seasonal_biomass_timeseries(
+    lat: float,
+    lon: float,
+    radius: float = 200.0,
+    source: str = "dlr",
+    dataset: str = "agbd_{year}",
+    start_time: int | str | date | datetime = 2021,
+    end_time: int | str | date | datetime = 2021,
+    data_dir: str = "data",
+    footprint_shape: str = "crns",
+    include_uncertainty: bool = True,
+    outlier_method: str | None = None,
+    vi: pd.DataFrame | dict[str, pd.Series] | None = None,
+    vi_source: str = "auto",
+    target_frequency: str | None = None,
+    reference_index: pd.DatetimeIndex | None = None,
+    baseline_fraction: float = 0.8,
+    **kwargs,
+) -> pd.DataFrame:
+    """
+    Build a higher-frequency biomass time series using VI-driven seasonal interpolation.
+
+    This function combines annual AGBD values with vegetation index (VI) time series
+    (LAI/EVI/NDVI) to produce a higher-resolution pandas DataFrame.
+
+    Args:
+        lat: Center latitude in WGS84 decimal degrees
+        lon: Center longitude in WGS84 decimal degrees
+        radius: Footprint radius in meters (default: 200m)
+        source: Data source name (default: "dlr")
+        dataset: Dataset template (default: "agbd_{year}")
+        start_time: Start year/date (int or date string)
+        end_time: End year/date (int or date string)
+        data_dir: Directory containing biomass data files
+        footprint_shape: Shape of footprint ("crns", "circular" or "gaussian")
+        include_uncertainty: Whether to include uncertainty statistics
+        outlier_method: Outlier detection method ("iqr", "zscore", or None)
+        vi: Optional VI inputs as a DataFrame or dict with keys "lai", "evi", "ndvi"
+        vi_source: "auto" (default), "gee+pc", "gee", or "pc" for fetching VI when vi is None
+        target_frequency: Optional pandas frequency (e.g., "1H", "1D"). If None, auto-detect.
+        reference_index: Optional DatetimeIndex (e.g., Neptoon index) for auto alignment.
+        baseline_fraction: Annual baseline fraction (0..1). VI modulates the remaining fraction.
+        **kwargs: Additional configuration parameters
+
+    Returns:
+        DataFrame indexed by timestamps with columns:
+        - agbd_annual
+        - agbd_interpolated
+        - agbd_lai / agbd_evi / agbd_ndvi (if provided)
+        - agbd_fused
+        - vi_fused
+        - vi_lai / vi_evi / vi_ndvi (if provided)
+    """
+    if vi is None:
+        if vi_source not in {"auto", "gee+pc", "gee", "pc"}:
+            raise ValueError("vi_source must be 'auto', 'gee+pc', 'gee', or 'pc'")
+        use_gee_lai = vi_source in {"auto", "gee+pc", "gee"}
+        use_pc_vi = vi_source in {"auto", "gee+pc", "pc"}
+        vi = fetch_vi_timeseries(
+            lat=lat,
+            lon=lon,
+            start_time=start_time,
+            end_time=end_time,
+            include_evi=True,
+            use_gee_lai=use_gee_lai,
+            use_pc_vi=use_pc_vi,
+            radius_cutoff_m=radius,
+            center_lat=lat,
+        )
+
+    logger.info("Building seasonal biomass time series for (%s, %s)", lat, lon)
+
+    def _to_series(value: pd.Series | pd.DataFrame | None) -> pd.Series | None:
+        if value is None:
+            return None
+        if hasattr(value, "index"):
+            series = value.squeeze()
+            if hasattr(series, "index"):
+                series.index = pd.to_datetime(series.index)
+                return series.sort_index()
+        raise ValueError("VI inputs must be pandas Series or DataFrame columns")
+
+    if hasattr(vi, "columns"):
+        lai = _to_series(vi["lai"]) if "lai" in vi.columns else None
+        evi = _to_series(vi["evi"]) if "evi" in vi.columns else None
+        ndvi = _to_series(vi["ndvi"]) if "ndvi" in vi.columns else None
+    else:
+        lai = _to_series(vi.get("lai"))
+        evi = _to_series(vi.get("evi"))
+        ndvi = _to_series(vi.get("ndvi"))
+
+    if lai is None and evi is None and ndvi is None:
+        raise ValueError("At least one VI series (lai/evi/ndvi) is required")
+
+    def _normalize_seasonyear(s: pd.Series) -> pd.Series:
+        out = s.copy()
+        for _year, seg in out.groupby(out.index.year):
+            if seg.dropna().size:
+                p5 = float(np.nanpercentile(seg, 5))
+                p95 = float(np.nanpercentile(seg, 95))
+                if p95 > p5:
+                    out.loc[seg.index] = (seg - p5) / (p95 - p5)
+        return out.clip(0.0, 1.0)
+
+    def _build_fused_vi(
+        lai_s: pd.Series | None,
+        evi_s: pd.Series | None,
+        ndvi_s: pd.Series | None,
+    ) -> pd.Series:
+        series = [s for s in (lai_s, evi_s, ndvi_s) if s is not None and not s.empty]
+        idx = series[0].index
+        for s in series[1:]:
+            idx = idx.union(s.index)
+        idx = pd.DatetimeIndex(sorted(idx.unique()))
+
+        lai_i = lai_s.reindex(idx).interpolate("time") if lai_s is not None else None
+        evi_i = evi_s.reindex(idx).interpolate("time") if evi_s is not None else None
+        ndvi_i = ndvi_s.reindex(idx).interpolate("time") if ndvi_s is not None else None
+
+        if evi_i is None and ndvi_i is None:
+            if lai_i is None:
+                raise ValueError("No VI series available for fusion")
+            return _normalize_seasonyear(lai_i)
+        if evi_i is None:
+            return _normalize_seasonyear(ndvi_i)
+        if ndvi_i is None:
+            return _normalize_seasonyear(evi_i)
+
+        lai_abs = lai_i
+        evi_n = _normalize_seasonyear(evi_i)
+        ndvi_n = _normalize_seasonyear(ndvi_i)
+
+        t1, t2 = 2.0, 3.0
+        a_low, a_mid, a_high = 0.65, 0.50, 0.35
+        alpha = pd.Series(a_mid, index=idx)
+        if lai_abs is not None and not lai_abs.empty:
+            alpha.loc[lai_abs < t1] = a_low
+            alpha.loc[(lai_abs >= t1) & (lai_abs < t2)] = a_mid
+            alpha.loc[lai_abs >= t2] = a_high
+        f = alpha.values * ndvi_n.fillna(0).values + (1.0 - alpha.values) * evi_n.fillna(0).values
+        return pd.Series(f, index=idx).clip(0.0, 1.0)
+
+    if not (0.0 <= baseline_fraction <= 1.0):
+        raise ValueError("baseline_fraction must be between 0 and 1")
+
+    vi_fused = _build_fused_vi(lai, evi, ndvi)
+
+    target_index = _infer_target_index(
+        vi_fused,
+        target_frequency,
+        reference_index,
+        start_time,
+        end_time,
+    )
+
+    vi_fused = vi_fused.reindex(target_index).interpolate("time")
+    vi_lai = lai.reindex(target_index).interpolate("time") if lai is not None else None
+    vi_evi = evi.reindex(target_index).interpolate("time") if evi is not None else None
+    vi_ndvi = ndvi.reindex(target_index).interpolate("time") if ndvi is not None else None
+
+    series = get_average_biomass_timeseries(
+        lat=lat,
+        lon=lon,
+        radius=radius,
+        source=source,
+        dataset=dataset,
+        start_time=start_time,
+        end_time=end_time,
+        data_dir=data_dir,
+        footprint_shape=footprint_shape,
+        include_uncertainty=include_uncertainty,
+        outlier_method=outlier_method,
+        **kwargs,
+    )
+
+    annual_map: dict[int, float] = {}
+    for entry in series:
+        year = int(entry["year"])
+        summary = entry["result"].get("summary", {})
+        annual_map[year] = summary.get("mean_biomass_Mg_ha", np.nan)
+
+    years = pd.Index(sorted(annual_map.keys()), name="year")
+    annual_series = pd.Series(annual_map, index=years, name="agbd_annual")
+
+    annual_on_index = pd.Series(index=target_index, dtype=float)
+    for year, value in annual_series.items():
+        mask = target_index.year == year
+        annual_on_index.loc[mask] = value
+
+    seasonal_multiplier = _scale_series_by_year(vi_fused)
+    agbd_interpolated = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * seasonal_multiplier)
+
+    agbd_fused = agbd_interpolated
+    agbd_lai = None
+    agbd_evi = None
+    agbd_ndvi = None
+
+    if vi_lai is not None:
+        lai_mult = _scale_series_by_year(vi_lai)
+        agbd_lai = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * lai_mult)
+    if vi_evi is not None:
+        evi_mult = _scale_series_by_year(vi_evi)
+        agbd_evi = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * evi_mult)
+    if vi_ndvi is not None:
+        ndvi_mult = _scale_series_by_year(vi_ndvi)
+        agbd_ndvi = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * ndvi_mult)
+
+    data = {
+        "agbd_annual": annual_on_index,
+        "agbd_interpolated": agbd_interpolated,
+        "agbd_fused": agbd_fused,
+        "vi_fused": vi_fused,
+    }
+    if vi_lai is not None:
+        data["vi_lai"] = vi_lai
+    if vi_evi is not None:
+        data["vi_evi"] = vi_evi
+    if vi_ndvi is not None:
+        data["vi_ndvi"] = vi_ndvi
+    if agbd_lai is not None:
+        data["agbd_lai"] = agbd_lai
+    if agbd_evi is not None:
+        data["agbd_evi"] = agbd_evi
+    if agbd_ndvi is not None:
+        data["agbd_ndvi"] = agbd_ndvi
+
+    return pd.DataFrame(data, index=target_index).sort_index()
 
 
 def list_available_datasets(source: str = "dlr", data_dir: str = "data") -> dict[str, Any]:

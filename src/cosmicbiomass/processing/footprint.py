@@ -49,7 +49,7 @@ class FootprintProcessor:
 
         # Detect data CRS
         data_crs = getattr(data, 'rio', None)
-        if data_crs is not None and hasattr(data_crs, 'crs'):
+        if data_crs is not None and hasattr(data_crs, 'crs') and data_crs.crs:
             data_crs_str = str(data_crs.crs)
             logger.debug(f"Detected data CRS: {data_crs_str}")
         else:

@@ -228,6 +228,28 @@ biomass_time_series = [
     }
     for entry in series
 ]
+
+```
+
+### VI-driven Seasonal Interpolation (pandas output)
+
+Use vegetation indices (LAI/EVI/NDVI) to create a higher-frequency biomass series. The
+frequency is inferred from your VI data or you can provide one (e.g., "1H", "1D").
+
+```python
+seasonal = cosmicbiomass.get_seasonal_biomass_timeseries(
+    lat=52.09,
+    lon=11.226,
+    radius=170,
+    dataset="agbd_{year}",
+    start_time="2017-01-01",
+    end_time="2023-12-31",
+    target_frequency="1D",
+    vi_source="auto",  # fetch LAI via GEE, EVI/NDVI via Planetary Computer
+)
+
+print(seasonal.head())
+```
 ```
 
 ## Data Sources
