@@ -41,6 +41,15 @@ pytest:
 build:
   stage: build
   script:
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+        TAG_VERSION=${CI_COMMIT_TAG#v}
+        if [ "$TAG_VERSION" != "$VERSION" ]; then
+          echo "Tag version ($TAG_VERSION) does not match pyproject.toml ($VERSION)."
+          exit 1
+        fi
+      fi
     - uv build
     - uv publish --dry-run dist/*.whl dist/*.tar.gz
   artifacts:
