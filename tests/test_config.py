@@ -60,7 +60,7 @@ class TestFootprintConfig:
         config = FootprintConfig(radius=500.0)
         
         assert config.radius == 500.0
-        assert config.shape == "circular"
+        assert config.shape == "crns"
     
     def test_custom_footprint_config(self):
         """Test custom footprint configuration."""
