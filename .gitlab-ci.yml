@@ -1,5 +1,4 @@
 stages:
-  - lint
   - test
   - build
   - publish
@@ -28,16 +27,15 @@ cache:
     - .uv-cache/
     - .cache/pip/
 
-lint:
-  stage: lint
-  script:
-    - uv sync --group dev
-    - uv run ruff check .
-
 pytest:
   stage: test
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: on_success
   script:
-    - uv sync --group dev
+    - uv sync --group dev --frozen
+    - uv run ruff check .
     - uv run pytest
 
 build:
