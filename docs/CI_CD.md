@@ -26,6 +26,25 @@ Publishing is tag-driven:
 - **TestPyPI**: `vX.Y.ZaN` (example: `v0.1.0a1`)
 - **PyPI**: `vX.Y.Z` (example: `v0.1.0`)
 
+## Tag & publish workflow
+
+1) Work on a feature branch and open a merge request.
+2) Ensure CI passes, then merge into `main`.
+3) Update version in:
+	- [pyproject.toml](../pyproject.toml)
+	- [src/cosmicbiomass/__init__.py](../src/cosmicbiomass/__init__.py)
+4) Tag on `main`:
+	- TestPyPI: `vX.Y.ZaN`
+	- PyPI: `vX.Y.Z`
+5) Push the tag to trigger publish:
+	- `git push origin vX.Y.ZaN`
+	- `git push origin vX.Y.Z`
+
+Notes:
+- Tags should be created on `main`, not feature branches.
+- Use alpha tags only when you want a TestPyPI publish.
+- Delete old alpha tags if needed to reduce noise.
+
 ## Jobs
 
 1. **pytest**: installs dev deps and runs the test suite.
