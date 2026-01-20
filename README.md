@@ -176,6 +176,10 @@ uv build
 uv publish
 ```
 
+## CI/CD (GitLab)
+
+See [docs/CI_CD.md](docs/CI_CD.md) for the GitLab pipeline, runner tags, and release tag formats.
+
 
 ## Advanced Usage
 
