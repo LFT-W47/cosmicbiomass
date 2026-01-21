@@ -449,7 +449,7 @@ wheels = [
 
 [[package]]
 name = "cosmicbiomass"
-version = "0.1.2"
+version = "0.1.4"
 source = { editable = "." }
 dependencies = [
     { name = "cubo" },
@@ -494,7 +494,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cubo", git = "https://github.com/LFT-W47/cubo" },
+    { name = "cubo", git = "https://github.com/LFT-W47/cubo?rev=799065c72a28f25081484f86bc985eb1c36806ac" },
     { name = "earthengine-api", specifier = ">=1.1.4" },
     { name = "geopandas", specifier = ">=0.14.0" },
     { name = "joblib", specifier = ">=1.3.0" },
@@ -636,7 +636,7 @@ toml = [
 [[package]]
 name = "cubo"
 version = "2026.1.0"
-source = { git = "https://github.com/LFT-W47/cubo#799065c72a28f25081484f86bc985eb1c36806ac" }
+source = { git = "https://github.com/LFT-W47/cubo?rev=799065c72a28f25081484f86bc985eb1c36806ac#799065c72a28f25081484f86bc985eb1c36806ac" }
 dependencies = [
     { name = "dask" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },

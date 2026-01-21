@@ -1,6 +1,6 @@
 [project]
 name = "cosmicbiomass"
-version = "0.1.3"
+version = "0.1.4"
 description = "Aboveground biomass extraction with footprint-weighted statistics."
 readme = "README.md"
 license = { text = "MIT" }
@@ -42,7 +42,7 @@ dependencies = [
     "scipy>=1.11.0",
     "setuptools>=80.9.0",
     "scikit-learn>=1.7.0",
-    "cubo",
+    "cubo @ git+https://github.com/LFT-W47/cubo@799065c72a28f25081484f86bc985eb1c36806ac",
 ]
 
 [project.urls]
@@ -167,9 +167,6 @@ ignore_missing_imports = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cosmicbiomass"]
-
-[tool.uv.sources]
-cubo = { git = "https://github.com/LFT-W47/cubo" }
 
 [tool.hatch.build]
 exclude = [
