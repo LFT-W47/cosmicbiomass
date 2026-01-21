@@ -25,7 +25,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
 dependencies = [
-    "cubo>=2024.8.0",
     "earthengine-api>=1.1.4",
     "xee>=0.0.13",
     "planetary-computer>=1.0.0",
@@ -43,6 +42,7 @@ dependencies = [
     "scipy>=1.11.0",
     "setuptools>=80.9.0",
     "scikit-learn>=1.7.0",
+    "cubo",
 ]
 
 [project.urls]
@@ -167,6 +167,9 @@ ignore_missing_imports = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cosmicbiomass"]
+
+[tool.uv.sources]
+cubo = { git = "https://github.com/LFT-W47/cubo" }
 
 [tool.hatch.build]
 exclude = [
