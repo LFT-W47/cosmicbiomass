@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+
 from cosmicbiomass.core import get_seasonal_biomass_timeseries
 
 

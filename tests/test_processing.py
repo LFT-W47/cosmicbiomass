@@ -8,6 +8,7 @@ Tests footprint processing and statistical analysis functionality.
 import numpy as np
 import pytest
 import xarray as xr
+
 from cosmicbiomass.config import FootprintConfig
 from cosmicbiomass.processing.footprint import (
     FootprintProcessor,

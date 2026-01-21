@@ -57,6 +57,12 @@ uv lock
 
 ```
 
+### Dependency Version Policy
+
+We track minimum supported versions and avoid strict upper bounds for most dependencies.
+This keeps the project compatible with the newest stable releases and simplifies upgrades.
+If a breaking change appears, we will pin that specific package until a fix is available.
+
 ### Reproducible Workflow Example
 
 Here's a complete example extracting biomass data at the TERENO Hohes Holz station:
