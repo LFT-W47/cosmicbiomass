@@ -175,6 +175,9 @@ exclude = [
     "htmlcov/**",
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
