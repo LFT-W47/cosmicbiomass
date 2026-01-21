@@ -7,6 +7,7 @@ Tests the data source registry and source management functionality.
 from unittest.mock import Mock
 
 import pytest
+
 from cosmicbiomass.config import BiomassConfig
 from cosmicbiomass.registry import (
     SourceRegistry,

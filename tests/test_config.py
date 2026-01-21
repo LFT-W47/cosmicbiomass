@@ -5,8 +5,9 @@ Tests the Pydantic-based configuration classes used throughout the package.
 """
 
 import pytest
-from cosmicbiomass.config import BiomassConfig, FootprintConfig
 from pydantic import ValidationError
+
+from cosmicbiomass.config import BiomassConfig, FootprintConfig
 
 
 class TestBiomassConfig:

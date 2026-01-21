@@ -8,11 +8,12 @@ that are used across multiple test modules.
 from typing import Any
 from unittest.mock import Mock
 
-import cosmicbiomass
 import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import Point, Polygon
+
+import cosmicbiomass
 
 
 class MockDataFactory:

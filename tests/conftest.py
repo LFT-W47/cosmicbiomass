@@ -10,12 +10,13 @@ import logging
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-# Import the package for testing
-import cosmicbiomass
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+
+# Import the package for testing
+import cosmicbiomass
 from cosmicbiomass.config import BiomassConfig, FootprintConfig
 from cosmicbiomass.sources.base import DatasetInfo
 

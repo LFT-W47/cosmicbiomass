@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 import xarray as xr
+
 from cosmicbiomass.config import FootprintConfig
 from cosmicbiomass.core import (
     get_average_biomass,
