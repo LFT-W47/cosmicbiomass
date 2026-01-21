@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 import xarray as xr
+
 from cosmicbiomass.config import BiomassConfig
 from cosmicbiomass.sources.base import DatasetInfo
 from cosmicbiomass.sources.dlr import DLRBiomassSource
