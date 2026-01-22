@@ -1,6 +1,6 @@
 [project]
 name = "cosmicbiomass"
-version = "0.1.4"
+version = "0.1.5"
 description = "Aboveground biomass extraction with footprint-weighted statistics."
 readme = "README.md"
 license = { text = "MIT" }
@@ -42,7 +42,7 @@ dependencies = [
     "scipy>=1.11.0",
     "setuptools>=80.9.0",
     "scikit-learn>=1.7.0",
-    "cubo @ git+https://github.com/LFT-W47/cubo@799065c72a28f25081484f86bc985eb1c36806ac",
+    "cubo-numpy2-0>=2026.1.0",
 ]
 
 [project.urls]
