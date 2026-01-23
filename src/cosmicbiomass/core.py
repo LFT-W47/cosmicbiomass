@@ -30,8 +30,9 @@ def get_average_biomass(
     footprint_shape: str = "crns",
     include_uncertainty: bool = True,
     outlier_method: str | None = None,
+    return_format: str = "dataframe",
     **kwargs
-) -> dict[str, Any]:
+) -> dict[str, Any] | pd.DataFrame:
     """
     Get average biomass for a footprint around specified coordinates.
 
@@ -48,9 +49,15 @@ def get_average_biomass(
         **kwargs: Additional configuration parameters
 
     Returns:
-        Dictionary containing biomass statistics and metadata
+        Pandas DataFrame with one row by default, or a dict when
+        return_format="dict".
     """
-    logger.info(f"Computing average biomass at ({lat}, {lon}) with {radius}m radius")
+    logger.info(
+        "Computing average biomass at (%s, %s) with %sm radius",
+        lat,
+        lon,
+        radius,
+    )
 
     # Create configuration objects
     config = BiomassConfig(data_dir=data_dir, **kwargs)
@@ -194,7 +201,46 @@ def get_average_biomass(
             result['summary']['uncertainty_source'] = 'data_spread'
 
     logger.info("Biomass analysis completed successfully")
-    return result
+
+    if return_format not in {"dataframe", "dict"}:
+        raise ValueError("return_format must be 'dataframe' or 'dict'")
+
+    if return_format == "dict":
+        return result
+
+    summary = result.get("summary", {})
+    row = {
+        "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
+        "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
+        "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
+        "uncertainty_source": summary.get("uncertainty_source"),
+        "pixel_count": summary.get("pixel_count"),
+        "dataset": dataset,
+        "source": source,
+        "latitude": lat,
+        "longitude": lon,
+        "radius_m": radius,
+        "footprint_shape": footprint_shape,
+        "units": result["data_info"].get("units"),
+        "spatial_resolution": result["data_info"].get("spatial_resolution"),
+        "temporal_coverage": result["data_info"].get("temporal_coverage"),
+    }
+
+    year = None
+    if source.lower() == "dlr":
+        try:
+            year = _coerce_year(dataset)
+        except ValueError:
+            year = None
+
+    if year is not None:
+        index = pd.PeriodIndex([year], freq="Y", name="year")
+    else:
+        index = pd.Index([dataset], name="dataset")
+
+    df = pd.DataFrame([row], index=index)
+    df.attrs["result"] = result
+    return df
 
 
 def _coerce_year(value: int | str | date | datetime) -> int:
@@ -272,8 +318,9 @@ def get_average_biomass_timeseries(
     footprint_shape: str = "crns",
     include_uncertainty: bool = True,
     outlier_method: str | None = None,
+    return_format: str = "dataframe",
     **kwargs
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | pd.DataFrame:
     """
     Get a multi-year time series of average biomass for a footprint.
 
@@ -292,7 +339,8 @@ def get_average_biomass_timeseries(
         **kwargs: Additional configuration parameters
 
     Returns:
-        Ordered list of dicts with keys: year, dataset, result.
+        Pandas DataFrame by default, or an ordered list of dicts with keys:
+        year, dataset, result when return_format="list".
     """
     start_year = _coerce_year(start_time)
     end_year = _coerce_year(end_time)
@@ -315,11 +363,38 @@ def get_average_biomass_timeseries(
             footprint_shape=footprint_shape,
             include_uncertainty=include_uncertainty,
             outlier_method=outlier_method,
+            return_format="dict",
             **kwargs,
         )
         series.append({"year": year, "dataset": dataset_id, "result": result})
 
-    return series
+    if return_format not in {"dataframe", "list"}:
+        raise ValueError("return_format must be 'dataframe' or 'list'")
+    if return_format == "list":
+        return series
+
+    rows: list[dict[str, Any]] = []
+    for entry in series:
+        summary = entry["result"].get("summary", {})
+        row = {
+            "year": entry["year"],
+            "dataset": entry["dataset"],
+            "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
+            "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
+            "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
+            "uncertainty_source": summary.get("uncertainty_source"),
+            "pixel_count": summary.get("pixel_count"),
+        }
+        rows.append(row)
+
+    if source.lower() == "dlr":
+        index = pd.PeriodIndex([row["year"] for row in rows], freq="Y", name="year")
+    else:
+        index = pd.Index([row["year"] for row in rows], name="year")
+
+    df = pd.DataFrame(rows, index=index)
+    df.attrs["series"] = series
+    return df
 
 
 def get_seasonal_biomass_timeseries(
@@ -498,10 +573,22 @@ def get_seasonal_biomass_timeseries(
     )
 
     annual_map: dict[int, float] = {}
-    for entry in series:
-        year = int(entry["year"])
-        summary = entry["result"].get("summary", {})
-        annual_map[year] = summary.get("mean_biomass_Mg_ha", np.nan)
+    if hasattr(series, "columns"):
+        values = series
+        if "mean_biomass_Mg_ha" in values.columns:
+            if isinstance(values.index, pd.PeriodIndex):
+                index_years = [int(period.year) for period in values.index]
+            else:
+                index_years = [int(_coerce_year(value)) for value in values["year"]]
+            for year, mean in zip(index_years, values["mean_biomass_Mg_ha"], strict=False):
+                annual_map[year] = mean
+        else:
+            raise ValueError("Expected mean_biomass_Mg_ha column in timeseries DataFrame")
+    else:
+        for entry in series:
+            year = int(entry["year"])
+            summary = entry["result"].get("summary", {})
+            annual_map[year] = summary.get("mean_biomass_Mg_ha", np.nan)
 
     years = pd.Index(sorted(annual_map.keys()), name="year")
     annual_series = pd.Series(annual_map, index=years, name="agbd_annual")
