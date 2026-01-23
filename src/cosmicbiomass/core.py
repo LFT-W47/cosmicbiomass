@@ -374,11 +374,11 @@ def get_average_biomass_timeseries(
         return series
 
     rows: list[dict[str, Any]] = []
+    years_index: list[int] = []
+    datasets_index: list[str] = []
     for entry in series:
         summary = entry["result"].get("summary", {})
         row = {
-            "year": entry["year"],
-            "dataset": entry["dataset"],
             "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
             "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
             "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
@@ -386,14 +386,19 @@ def get_average_biomass_timeseries(
             "pixel_count": summary.get("pixel_count"),
         }
         rows.append(row)
+        years_index.append(int(entry["year"]))
+        datasets_index.append(entry["dataset"])
 
     if source.lower() == "dlr":
-        index = pd.PeriodIndex([row["year"] for row in rows], freq="Y", name="year")
+        index = pd.PeriodIndex(years_index, freq="Y", name="year")
     else:
-        index = pd.Index([row["year"] for row in rows], name="year")
+        index = pd.Index(years_index, name="year")
 
     df = pd.DataFrame(rows, index=index)
     df.attrs["series"] = series
+    df.attrs["datasets"] = dict(zip(years_index, datasets_index, strict=False))
+    df.attrs["source"] = source
+    df.attrs["dataset_template"] = dataset
     return df
 
 
@@ -579,7 +584,7 @@ def get_seasonal_biomass_timeseries(
             if isinstance(values.index, pd.PeriodIndex):
                 index_years = [int(period.year) for period in values.index]
             else:
-                index_years = [int(_coerce_year(value)) for value in values["year"]]
+                index_years = [int(_coerce_year(value)) for value in values.index]
             for year, mean in zip(index_years, values["mean_biomass_Mg_ha"], strict=False):
                 annual_map[year] = mean
         else:

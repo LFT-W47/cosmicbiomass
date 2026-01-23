@@ -12,6 +12,7 @@ import xarray as xr
 from cosmicbiomass.config import FootprintConfig
 from cosmicbiomass.core import (
     get_average_biomass,
+    get_average_biomass_timeseries,
     list_available_datasets,
     validate_coordinates,
 )
@@ -325,6 +326,46 @@ class TestGetAverageBiomass:
         assert result.iloc[0]['dataset'] == "custom_dataset"
         assert result.attrs['result']['processing']['outlier_method'] == "iqr"
         assert result.attrs['result']['processing']['include_uncertainty'] is False
+
+
+class TestGetAverageBiomassTimeseries:
+    """Tests for get_average_biomass_timeseries function."""
+
+    @patch('cosmicbiomass.core.get_average_biomass')
+    def test_timeseries_dataframe_structure(self, mock_get_average):
+        """Test timeseries DataFrame columns and metadata."""
+        mock_get_average.return_value = {
+            "summary": {
+                "mean_biomass_Mg_ha": 100.0,
+                "std_biomass_Mg_ha": 12.0,
+                "uncertainty_Mg_ha": 10.0,
+                "uncertainty_source": "data_spread",
+                "pixel_count": 25,
+            }
+        }
+
+        df = get_average_biomass_timeseries(
+            lat=52.0,
+            lon=11.0,
+            dataset="agbd_{year}",
+            start_time=2020,
+            end_time=2021,
+        )
+
+        assert isinstance(df, pd.DataFrame)
+        assert "year" not in df.columns
+        assert "dataset" not in df.columns
+        assert "mean_biomass_Mg_ha" in df.columns
+        assert "std_biomass_Mg_ha" in df.columns
+        assert "uncertainty_Mg_ha" in df.columns
+        assert "uncertainty_source" in df.columns
+        assert "pixel_count" in df.columns
+        assert isinstance(df.index, pd.PeriodIndex)
+        assert df.index.name == "year"
+        assert df.attrs["source"] == "dlr"
+        assert df.attrs["dataset_template"] == "agbd_{year}"
+        assert df.attrs["datasets"] == {2020: "agbd_2020", 2021: "agbd_2021"}
+        assert len(df.attrs["series"]) == 2
 
 
 class TestListAvailableDatasets:
