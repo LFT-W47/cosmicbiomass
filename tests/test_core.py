@@ -5,6 +5,7 @@ Comprehensive unit tests for the core module.
 from unittest.mock import Mock, patch
 
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -138,22 +139,31 @@ class TestGetAverageBiomass:
         mock_stats_instance.compute_weighted_statistics.assert_called_once()
 
         # Verify result structure
-        assert 'biomass_statistics' in result
-        assert 'location' in result
-        assert 'footprint' in result
-        assert 'data_info' in result
-        assert 'processing' in result
-        assert 'summary' in result
+        assert isinstance(result, pd.DataFrame)
+        assert 'mean_biomass_Mg_ha' in result.columns
+        assert 'std_biomass_Mg_ha' in result.columns
+        assert 'pixel_count' in result.columns
+        assert 'dataset' in result.columns
+        assert 'source' in result.columns
 
         # Verify location data
-        assert result['location']['latitude'] == 52.09
-        assert result['location']['longitude'] == 11.226
-        assert result['location']['radius_m'] == 500.0
+        assert result.iloc[0]['latitude'] == 52.09
+        assert result.iloc[0]['longitude'] == 11.226
+        assert result.iloc[0]['radius_m'] == 500.0
 
         # Verify summary data
-        assert result['summary']['mean_biomass_Mg_ha'] == 150.0
-        assert result['summary']['std_biomass_Mg_ha'] == 25.0
-        assert result['summary']['pixel_count'] == 100
+        assert result.iloc[0]['mean_biomass_Mg_ha'] == 150.0
+        assert result.iloc[0]['std_biomass_Mg_ha'] == 25.0
+        assert result.iloc[0]['pixel_count'] == 100
+
+        # Verify full result payload preserved
+        assert 'result' in result.attrs
+        assert 'biomass_statistics' in result.attrs['result']
+        assert 'location' in result.attrs['result']
+        assert 'footprint' in result.attrs['result']
+        assert 'data_info' in result.attrs['result']
+        assert 'processing' in result.attrs['result']
+        assert 'summary' in result.attrs['result']
 
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
@@ -185,8 +195,10 @@ class TestGetAverageBiomass:
         result = get_average_biomass(52.09, 11.226, include_uncertainty=True)
 
         # Verify uncertainty in result
-        assert result['summary']['uncertainty_Mg_ha'] == 15.0
-        assert result['summary']['uncertainty_source'] == 'uncertainty_band'
+        assert result.iloc[0]['uncertainty_Mg_ha'] == 15.0
+        assert result.iloc[0]['uncertainty_source'] == 'uncertainty_band'
+        assert result.attrs['result']['summary']['uncertainty_Mg_ha'] == 15.0
+        assert result.attrs['result']['summary']['uncertainty_source'] == 'uncertainty_band'
 
     @patch('cosmicbiomass.core.get_source')
     @patch('cosmicbiomass.core.FootprintProcessor')
@@ -218,8 +230,10 @@ class TestGetAverageBiomass:
         result = get_average_biomass(52.09, 11.226, include_uncertainty=True)
 
         # Verify uncertainty uses std
-        assert result['summary']['uncertainty_Mg_ha'] == 25.0  # Same as std
-        assert result['summary']['uncertainty_source'] == 'data_spread'
+        assert result.iloc[0]['uncertainty_Mg_ha'] == 25.0  # Same as std
+        assert result.iloc[0]['uncertainty_source'] == 'data_spread'
+        assert result.attrs['result']['summary']['uncertainty_Mg_ha'] == 25.0
+        assert result.attrs['result']['summary']['uncertainty_source'] == 'data_spread'
 
     @patch('cosmicbiomass.core.get_source')
     def test_data_loading_error(self, mock_get_source):
@@ -306,11 +320,11 @@ class TestGetAverageBiomass:
         )
 
         # Verify custom parameters are used
-        assert result['location']['radius_m'] == 1000.0
-        assert result['data_info']['source'] == "custom_source"
-        assert result['data_info']['dataset'] == "custom_dataset"
-        assert result['processing']['outlier_method'] == "iqr"
-        assert result['processing']['include_uncertainty'] is False
+        assert result.iloc[0]['radius_m'] == 1000.0
+        assert result.iloc[0]['source'] == "custom_source"
+        assert result.iloc[0]['dataset'] == "custom_dataset"
+        assert result.attrs['result']['processing']['outlier_method'] == "iqr"
+        assert result.attrs['result']['processing']['include_uncertainty'] is False
 
 
 class TestListAvailableDatasets:
