@@ -63,6 +63,10 @@ dev = [
     "mypy>=1.8.0",
     "pre-commit>=3.6.0",
     "matplotlib>=3.10.3",
+    "stubs>=1.0.0",
+    "scipy-stubs>=1.15.3.0",
+    "pandas-stubs>=2.3.3.260113",
+    "types-shapely>=2.1.0.20250917",
 ]
 
 [tool.pytest.ini_options]
