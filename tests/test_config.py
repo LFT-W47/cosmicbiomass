@@ -22,10 +22,7 @@ class TestBiomassConfig:
 
     def test_custom_config(self):
         """Test configuration with custom values."""
-        config = BiomassConfig(
-            data_dir="/custom/path",
-            n_jobs=4
-        )
+        config = BiomassConfig(data_dir="/custom/path", n_jobs=4)
 
         assert config.data_dir == "/custom/path"
         assert config.n_jobs == 4
@@ -64,10 +61,7 @@ class TestFootprintConfig:
 
     def test_custom_footprint_config(self):
         """Test custom footprint configuration."""
-        config = FootprintConfig(
-            radius=240.0,
-            shape="gaussian"
-        )
+        config = FootprintConfig(radius=240.0, shape="gaussian")
 
         assert config.radius == 240.0
         assert config.shape == "gaussian"

@@ -29,7 +29,7 @@ class MockDataFactory:
         biomass_range: tuple[float, float] = (50.0, 300.0),
         add_temporal: bool = True,
         add_noise: bool = True,
-        seed: int = 42
+        seed: int = 42,
     ) -> xr.Dataset:
         """
         Create a synthetic biomass data cube for testing.
@@ -64,18 +64,22 @@ class MockDataFactory:
 
         if add_noise:
             # Create spatially correlated biomass pattern
-            y_grid, x_grid = np.meshgrid(np.arange(height), np.arange(width), indexing='ij')
+            y_grid, x_grid = np.meshgrid(
+                np.arange(height), np.arange(width), indexing="ij"
+            )
 
             # Radial pattern from center
             center_y, center_x = height // 2, width // 2
-            distance = np.sqrt((x_grid - center_x)**2 + (y_grid - center_y)**2)
+            distance = np.sqrt((x_grid - center_x) ** 2 + (y_grid - center_y) ** 2)
 
             # Higher biomass in center, lower at edges
             normalized_distance = distance / np.max(distance)
             base_pattern = max_biomass * (1 - 0.5 * normalized_distance)
 
             # Add random noise
-            noise = np.random.normal(0, (max_biomass - min_biomass) * 0.1, (height, width))
+            noise = np.random.normal(
+                0, (max_biomass - min_biomass) * 0.1, (height, width)
+            )
             biomass_data = base_pattern + noise
         else:
             # Uniform biomass
@@ -87,12 +91,15 @@ class MockDataFactory:
 
         # Create temporal dimension if requested
         if add_temporal:
-            time_coords = pd.to_datetime(['2020-01-01', '2021-01-01', '2022-01-01'])
+            time_coords = pd.to_datetime(["2020-01-01", "2021-01-01", "2022-01-01"])
             # Add slight temporal variation
-            temporal_data = np.stack([
-                biomass_data * (1 + 0.05 * np.random.normal(0, 1, biomass_data.shape))
-                for _ in time_coords
-            ])
+            temporal_data = np.stack(
+                [
+                    biomass_data
+                    * (1 + 0.05 * np.random.normal(0, 1, biomass_data.shape))
+                    for _ in time_coords
+                ]
+            )
             data_dims = ["time", "y", "x"]
             coords = {"x": x_coords, "y": y_coords, "time": time_coords}
         else:
@@ -103,19 +110,23 @@ class MockDataFactory:
         # Create dataset
         ds = xr.Dataset(
             {
-                "agbd": (data_dims, temporal_data, {
-                    "units": "Mg/ha",
-                    "long_name": "Above-ground biomass density",
-                    "description": f"Synthetic test data (seed={seed})"
-                })
+                "agbd": (
+                    data_dims,
+                    temporal_data,
+                    {
+                        "units": "Mg/ha",
+                        "long_name": "Above-ground biomass density",
+                        "description": f"Synthetic test data (seed={seed})",
+                    },
+                )
             },
             coords=coords,
             attrs={
                 "source": "MockDataFactory",
                 "crs": "EPSG:4326",
                 "resolution_m": resolution,
-                "created_for": "cosmicbiomass testing"
-            }
+                "created_for": "cosmicbiomass testing",
+            },
         )
 
         return ds
@@ -125,7 +136,7 @@ class MockDataFactory:
         size: int = 20,
         center: tuple[int, int] = None,
         max_radius: float = None,
-        falloff: str = "linear"
+        falloff: str = "linear",
     ) -> np.ndarray:
         """
         Create circular fractional coverage weights.
@@ -148,7 +159,7 @@ class MockDataFactory:
         y, x = np.ogrid[:size, :size]
 
         # Calculate distance from center
-        distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+        distance = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
 
         if falloff == "linear":
             weights = np.maximum(0, 1 - distance / max_radius)
@@ -179,8 +190,11 @@ class MockDataFactory:
             # Calculate grid size based on edge_size and resolution
             grid_size = max(10, int(edge_size / source.resolution))
             return MockDataFactory.create_biomass_cube(
-                lat=lat, lon=lon, width=grid_size, height=grid_size,
-                resolution=source.resolution
+                lat=lat,
+                lon=lon,
+                width=grid_size,
+                height=grid_size,
+                resolution=source.resolution,
             )
 
         source.extract_cube.side_effect = mock_extract_cube
@@ -194,7 +208,7 @@ class MockDataFactory:
             "temporal_range": f"{source.start_date} to {source.end_date}",
             "resolution_m": source.resolution,
             "units": "Mg/ha",
-            "description": "Mock above-ground biomass density for testing"
+            "description": "Mock above-ground biomass density for testing",
         }
 
         return source
@@ -212,7 +226,7 @@ class TestDatasets:
             width=30,
             height=30,
             biomass_range=(80.0, 250.0),  # Typical temperate forest
-            seed=123
+            seed=123,
         )
 
     @staticmethod
@@ -224,7 +238,7 @@ class TestDatasets:
             width=25,
             height=25,
             biomass_range=(5.0, 50.0),  # Sparse vegetation
-            seed=456
+            seed=456,
         )
 
     @staticmethod
@@ -236,7 +250,7 @@ class TestDatasets:
             width=35,
             height=35,
             biomass_range=(200.0, 450.0),  # High tropical biomass
-            seed=789
+            seed=789,
         )
 
 
@@ -247,13 +261,13 @@ class GeometryHelpers:
     def create_test_geometries() -> dict[str, Any]:
         """Create various test geometries for footprint testing."""
         return {
-            "small_circle": Point(0, 0).buffer(50),   # 50m radius
-            "medium_circle": Point(0, 0).buffer(200), # 200m radius
+            "small_circle": Point(0, 0).buffer(50),  # 50m radius
+            "medium_circle": Point(0, 0).buffer(200),  # 200m radius
             "large_circle": Point(0, 0).buffer(500),  # 500m radius
             "rectangle": Polygon([(-100, -50), (100, -50), (100, 50), (-100, 50)]),
-            "complex_shape": Point(0, 0).buffer(100).difference(
-                Point(50, 50).buffer(30)
-            )  # Circle with hole
+            "complex_shape": Point(0, 0)
+            .buffer(100)
+            .difference(Point(50, 50).buffer(30)),  # Circle with hole
         }
 
     @staticmethod
@@ -262,10 +276,10 @@ class GeometryHelpers:
         return {
             "temperate_forest": {"lat": 51.1657, "lon": 13.7882},  # Dresden
             "tropical_forest": {"lat": -3.4653, "lon": -62.2159},  # Amazon
-            "boreal_forest": {"lat": 64.0685, "lon": -21.0457},    # Iceland
-            "mediterranean": {"lat": 41.9028, "lon": 12.4964},     # Rome
-            "polar": {"lat": 78.2232, "lon": 15.6267},             # Svalbard
-            "equator": {"lat": 0.0, "lon": 0.0},                   # Equator/Prime Meridian
+            "boreal_forest": {"lat": 64.0685, "lon": -21.0457},  # Iceland
+            "mediterranean": {"lat": 41.9028, "lon": 12.4964},  # Rome
+            "polar": {"lat": 78.2232, "lon": 15.6267},  # Svalbard
+            "equator": {"lat": 0.0, "lon": 0.0},  # Equator/Prime Meridian
         }
 
 
@@ -273,8 +287,9 @@ class ValidationHelpers:
     """Utilities for validating test results."""
 
     @staticmethod
-    def validate_biomass_result(result: tuple[float, float],
-                                expected_range: tuple[float, float] = (0.0, 1000.0)) -> bool:
+    def validate_biomass_result(
+        result: tuple[float, float], expected_range: tuple[float, float] = (0.0, 1000.0)
+    ) -> bool:
         """
         Validate that a biomass result is reasonable.
 
@@ -289,7 +304,9 @@ class ValidationHelpers:
         min_biomass, max_biomass = expected_range
 
         # Check types
-        if not isinstance(mean_biomass, int | float) or not isinstance(uncertainty, int | float):
+        if not isinstance(mean_biomass, int | float) or not isinstance(
+            uncertainty, int | float
+        ):
             return False
 
         # Check for NaN/inf
@@ -354,7 +371,7 @@ class ValidationHelpers:
 
         # Check coordinate dimensions
         main_var = cube[list(cube.data_vars)[0]]
-        if 'x' not in main_var.coords or 'y' not in main_var.coords:
+        if "x" not in main_var.coords or "y" not in main_var.coords:
             return False
 
         # Check data validity
@@ -373,8 +390,7 @@ class LoggingHelpers:
     def extract_log_messages(caplog, level: str = "INFO") -> list:
         """Extract log messages of specific level from caplog."""
         return [
-            record.message for record in caplog.records
-            if record.levelname == level
+            record.message for record in caplog.records if record.levelname == level
         ]
 
     @staticmethod

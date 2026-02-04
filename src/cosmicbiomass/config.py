@@ -29,14 +29,12 @@ class BiomassConfig(BaseModel):
 
     # Data directory settings
     data_dir: str = Field(
-        default="data",
-        description="Directory containing biomass data files"
+        default="data", description="Directory containing biomass data files"
     )
 
     # Processing settings
     n_jobs: int = Field(
-        default=-1,
-        description="Number of parallel jobs (-1 for all CPUs)"
+        default=-1, description="Number of parallel jobs (-1 for all CPUs)"
     )
 
 
@@ -50,19 +48,22 @@ class FootprintConfig(BaseModel):
         frozen=False,
     )
 
-    radius: float = Field(
-        gt=0,
-        description="Footprint radius in meters"
-    )
+    radius: float = Field(gt=0, description="Footprint radius in meters")
 
     shape: str = Field(
         default="crns",
-        description="Footprint shape ('circular', 'gaussian', or 'crns')"
+        description="Footprint shape ('circular', 'gaussian', or 'crns')",
     )
 
     def __init__(self, **kwargs):
-        if 'shape' in kwargs and kwargs['shape'] not in ['circular', 'gaussian', 'crns']:
-            raise ValueError("Footprint shape must be 'circular', 'gaussian', or 'crns'")
+        if "shape" in kwargs and kwargs["shape"] not in [
+            "circular",
+            "gaussian",
+            "crns",
+        ]:
+            raise ValueError(
+                "Footprint shape must be 'circular', 'gaussian', or 'crns'"
+            )
         super().__init__(**kwargs)
 
 

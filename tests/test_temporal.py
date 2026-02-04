@@ -26,8 +26,16 @@ def _make_vi_df(start: str, end: str, freq: str) -> pd.DataFrame:
 def test_seasonal_timeseries_infers_frequency(mock_timeseries):
     vi = _make_vi_df("2020-01-01", "2021-12-31", "1D")
     mock_timeseries.return_value = [
-        {"year": 2020, "dataset": "agbd_2020", "result": {"summary": {"mean_biomass_Mg_ha": 100.0}}},
-        {"year": 2021, "dataset": "agbd_2021", "result": {"summary": {"mean_biomass_Mg_ha": 120.0}}},
+        {
+            "year": 2020,
+            "dataset": "agbd_2020",
+            "result": {"summary": {"mean_biomass": 100.0}},
+        },
+        {
+            "year": 2021,
+            "dataset": "agbd_2021",
+            "result": {"summary": {"mean_biomass": 120.0}},
+        },
     ]
 
     df = get_seasonal_biomass_timeseries(
@@ -57,7 +65,11 @@ def test_seasonal_timeseries_infers_frequency(mock_timeseries):
 def test_seasonal_timeseries_respects_target_frequency(mock_timeseries):
     vi = _make_vi_df("2020-01-01", "2020-12-31", "1D")
     mock_timeseries.return_value = [
-        {"year": 2020, "dataset": "agbd_2020", "result": {"summary": {"mean_biomass_Mg_ha": 80.0}}},
+        {
+            "year": 2020,
+            "dataset": "agbd_2020",
+            "result": {"summary": {"mean_biomass": 80.0}},
+        },
     ]
 
     df = get_seasonal_biomass_timeseries(
@@ -80,7 +92,11 @@ def test_seasonal_timeseries_respects_target_frequency(mock_timeseries):
 def test_seasonal_timeseries_reference_index_timezone_alignment(mock_timeseries):
     vi = _make_vi_df("2020-01-01", "2020-12-31", "1D")
     mock_timeseries.return_value = [
-        {"year": 2020, "dataset": "agbd_2020", "result": {"summary": {"mean_biomass_Mg_ha": 100.0}}},
+        {
+            "year": 2020,
+            "dataset": "agbd_2020",
+            "result": {"summary": {"mean_biomass": 100.0}},
+        },
     ]
 
     reference_index = pd.date_range("2020-01-01", "2020-01-10", freq="1D", tz="UTC")
@@ -105,7 +121,11 @@ def test_seasonal_timeseries_reference_index_timezone_alignment(mock_timeseries)
 def test_seasonal_timeseries_output_units_kg_m2(mock_timeseries):
     vi = _make_vi_df("2020-01-01", "2020-12-31", "1D")
     mock_timeseries.return_value = [
-        {"year": 2020, "dataset": "agbd_2020", "result": {"summary": {"mean_biomass_Mg_ha": 100.0}}},
+        {
+            "year": 2020,
+            "dataset": "agbd_2020",
+            "result": {"summary": {"mean_biomass": 100.0}},
+        },
     ]
 
     df = get_seasonal_biomass_timeseries(
@@ -117,6 +137,6 @@ def test_seasonal_timeseries_output_units_kg_m2(mock_timeseries):
         output_units="kg/m^2",
     )
 
-    assert "agbd_interpolated_kg_m2" in df.columns
-    assert "agbd_interpolated" not in df.columns
-    assert np.isclose(df["agbd_interpolated_kg_m2"].max(), 10.0, atol=1e-6)
+    assert "agbd_interpolated" in df.columns
+    assert "agbd_interpolated_kg_m2" not in df.columns
+    assert np.isclose(df["agbd_interpolated"].max(), 10.0, atol=1e-6)

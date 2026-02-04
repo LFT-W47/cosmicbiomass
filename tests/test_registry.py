@@ -63,7 +63,9 @@ class TestSourceRegistry:
         registry = SourceRegistry()
 
         # Try to register a class that doesn't inherit from BiomassDataSource
-        with pytest.raises(ValueError, match="Source class must inherit from BiomassDataSource"):
+        with pytest.raises(
+            ValueError, match="Source class must inherit from BiomassDataSource"
+        ):
             registry.register_source("invalid", str)
 
     def test_get_source(self):
@@ -219,10 +221,13 @@ class TestRegistryEdgeCases:
             @property
             def source_name(self):
                 return "another"
+
             def get_available_datasets(self):
                 return {}
+
             def load_data(self, dataset_id, bbox=None):
                 return Mock()
+
             def get_metadata(self, dataset_id):
                 return {}
 
@@ -350,9 +355,10 @@ class TestRegistryEdgeCases:
     def test_registry_logging(self):
         """Test that registry operations are logged correctly."""
         from unittest.mock import patch
+
         registry = SourceRegistry()
 
-        with patch('cosmicbiomass.registry.logger') as mock_logger:
+        with patch("cosmicbiomass.registry.logger") as mock_logger:
             # Test source registration logging
             registry.register_source("test", MockDataSource)
             mock_logger.debug.assert_any_call("Registered data source: test")
@@ -374,7 +380,9 @@ class TestRegistryEdgeCases:
         class NotADataSource:
             pass
 
-        with pytest.raises(ValueError, match="Source class must inherit from BiomassDataSource"):
+        with pytest.raises(
+            ValueError, match="Source class must inherit from BiomassDataSource"
+        ):
             registry.register_source("invalid", NotADataSource)
 
         # Test with valid subclass (should work)

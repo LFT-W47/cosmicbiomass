@@ -20,7 +20,9 @@ _DEFAULT_SMOOTH_KIND = "rolling"
 _DEFAULT_ROLLING_WINDOW = 3
 
 
-def _deg_to_m_grid(x_deg: np.ndarray, y_deg: np.ndarray, lat0: float) -> tuple[np.ndarray, np.ndarray]:
+def _deg_to_m_grid(
+    x_deg: np.ndarray, y_deg: np.ndarray, lat0: float
+) -> tuple[np.ndarray, np.ndarray]:
     m_per_deg_lat = 111_320.0
     m_per_deg_lon = 111_320.0 * np.cos(np.deg2rad(lat0))
     x0 = float(np.nanmean(x_deg))
@@ -60,16 +62,25 @@ def _aggregate_weighted_ts(
     x_vals = np.asarray(da.x.data)
     y_vals = np.asarray(da.y.data)
     try:
-        if x_vals.size == 0 or y_vals.size == 0 or np.all(np.isnan(x_vals)) or np.all(np.isnan(y_vals)):
+        if (
+            x_vals.size == 0
+            or y_vals.size == 0
+            or np.all(np.isnan(x_vals))
+            or np.all(np.isnan(y_vals))
+        ):
             raise ValueError("empty x/y coordinates")
-        w = _crns_weights(x_vals, y_vals, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m)
+        w = _crns_weights(
+            x_vals, y_vals, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m
+        )
         w_da = xr.DataArray(w, coords={"y": da.y, "x": da.x}, dims=("y", "x"))
         valid = da.notnull()
         num = (da * w_da).where(valid).sum(dim=("y", "x"))
         den = w_da.where(valid).sum(dim=("y", "x"))
         return (num / xr.where(den > 0, den, np.nan)).astype(float)
     except Exception as exc:
-        logger.warning("CRNS weighting failed, falling back to spatial aggregate: %s", exc)
+        logger.warning(
+            "CRNS weighting failed, falling back to spatial aggregate: %s", exc
+        )
         try:
             return da.median(dim=("y", "x"), skipna=True).astype(float)
         except Exception:
@@ -100,7 +111,9 @@ def _smooth(
     rolling_window: int = _DEFAULT_ROLLING_WINDOW,
 ) -> pd.Series:
     if kind == "rolling":
-        return series.rolling(window=rolling_window, center=True, min_periods=1).median()
+        return series.rolling(
+            window=rolling_window, center=True, min_periods=1
+        ).median()
     return series
 
 
@@ -173,7 +186,9 @@ def _fetch_lai_gee(
     )
     lai = lai.where(mask)
 
-    ts = _aggregate_weighted_ts(lai, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m)
+    ts = _aggregate_weighted_ts(
+        lai, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m
+    )
     series = _series_from_da(ts)
     series = _gap_fill(series)
     return _smooth(series)
@@ -287,7 +302,11 @@ def _fetch_vi_pc_stackstac(
 
     times: list[np.datetime64] = []
     for it in items:
-        dt = it.properties.get("start_datetime") or it.properties.get("datetime") or it.properties.get("end_datetime")
+        dt = (
+            it.properties.get("start_datetime")
+            or it.properties.get("datetime")
+            or it.properties.get("end_datetime")
+        )
         if dt:
             times.append(np.datetime64(dt))
         else:
@@ -295,7 +314,9 @@ def _fetch_vi_pc_stackstac(
             if match:
                 year = int(match.group(1))
                 doy = int(match.group(2))
-                stamp = pd.Timestamp(year=year, month=1, day=1) + pd.Timedelta(days=doy - 1)
+                stamp = pd.Timestamp(year=year, month=1, day=1) + pd.Timedelta(
+                    days=doy - 1
+                )
                 times.append(np.datetime64(stamp.date()))
             else:
                 times.append(np.datetime64("NaT"))
@@ -307,7 +328,11 @@ def _fetch_vi_pc_stackstac(
         da = da.isel(time=valid)
 
     bands_list = list(map(str, da.band.values))
-    qa = da.sel(band="500m_16_days_pixel_reliability") if "500m_16_days_pixel_reliability" in bands_list else None
+    qa = (
+        da.sel(band="500m_16_days_pixel_reliability")
+        if "500m_16_days_pixel_reliability" in bands_list
+        else None
+    )
 
     def _process(vi_band_name: str, clip: tuple[float, float]) -> pd.Series | None:
         if vi_band_name not in bands_list:
@@ -319,7 +344,9 @@ def _fetch_vi_pc_stackstac(
             vi = vi.where(qa <= 1)
         vi = vi.where((vi >= clip[0]) & (vi <= clip[1]))
 
-        ts = _aggregate_weighted_ts(vi, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m)
+        ts = _aggregate_weighted_ts(
+            vi, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m
+        )
         series = _series_from_da(ts)
         series = _gap_fill(series)
         return _smooth(series)
@@ -360,7 +387,11 @@ def _fetch_vi_pc_cubo(
 
     da = da.assign_coords(band=[str(b) for b in da.band.values])
     bands_list = list(map(str, da.band.values))
-    qa = da.sel(band="500m_16_days_pixel_reliability") if "500m_16_days_pixel_reliability" in bands_list else None
+    qa = (
+        da.sel(band="500m_16_days_pixel_reliability")
+        if "500m_16_days_pixel_reliability" in bands_list
+        else None
+    )
 
     def _process(vi_band_name: str, clip: tuple[float, float]) -> pd.Series | None:
         if vi_band_name not in bands_list:
@@ -371,7 +402,9 @@ def _fetch_vi_pc_cubo(
         if qa is not None:
             vi = vi.where(qa <= 1)
         vi = vi.where((vi >= clip[0]) & (vi <= clip[1]))
-        ts = _aggregate_weighted_ts(vi, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m)
+        ts = _aggregate_weighted_ts(
+            vi, center_lat=center_lat, radius_cutoff_m=radius_cutoff_m
+        )
         series = _series_from_da(ts)
         series = _gap_fill(series)
         return _smooth(series)

@@ -4,7 +4,6 @@ Unit tests for the processing module.
 Tests footprint processing and statistical analysis functionality.
 """
 
-
 import numpy as np
 import pytest
 import xarray as xr
@@ -23,12 +22,7 @@ class TestBiomassStatistics:
     def test_biomass_statistics_creation(self):
         """Test creating BiomassStatistics instance."""
         stats = BiomassStatistics(
-            mean=150.5,
-            std=25.3,
-            median=148.2,
-            min=100.0,
-            max=200.0,
-            count=1000
+            mean=150.5, std=25.3, median=148.2, min=100.0, max=200.0, count=1000
         )
 
         assert stats.mean == 150.5
@@ -46,7 +40,7 @@ class TestBiomassStatistics:
             max=200.0,
             count=1000,
             uncertainty_mean=12.5,
-            uncertainty_std=3.2
+            uncertainty_std=3.2,
         )
 
         assert stats.uncertainty_mean == 12.5
@@ -61,7 +55,7 @@ class TestBiomassStatistics:
             min=100.0,
             max=200.0,
             count=1000,
-            uncertainty_mean=12.5
+            uncertainty_mean=12.5,
         )
 
         result = stats.to_dict()
@@ -93,8 +87,8 @@ class TestFootprintProcessor:
 
         data = xr.DataArray(
             np.random.rand(len(y_coords), len(x_coords)),
-            dims=['y', 'x'],
-            coords={'x': x_coords, 'y': y_coords}
+            dims=["y", "x"],
+            coords={"x": x_coords, "y": y_coords},
         )
 
         # Center corresponds to approximately 52.09°N, 11.226°E (Hohes Holz area)
@@ -121,8 +115,8 @@ class TestFootprintProcessor:
 
         data = xr.DataArray(
             np.random.rand(len(y_coords), len(x_coords)),
-            dims=['y', 'x'],
-            coords={'x': x_coords, 'y': y_coords}
+            dims=["y", "x"],
+            coords={"x": x_coords, "y": y_coords},
         )
 
         # Use proper lat/lon coordinates
@@ -147,8 +141,8 @@ class TestFootprintProcessor:
 
         data = xr.DataArray(
             np.random.rand(len(y_coords), len(x_coords)),
-            dims=['y', 'x'],
-            coords={'x': x_coords, 'y': y_coords}
+            dims=["y", "x"],
+            coords={"x": x_coords, "y": y_coords},
         )
 
         # Test with projected coordinates (should assume UTM and not transform)
@@ -174,8 +168,7 @@ class TestFootprintProcessor:
 
         # Data without x/y or lon/lat coordinates
         data = xr.DataArray(
-            np.random.rand(10, 10),
-            dims=['a', 'b']  # No spatial coordinates
+            np.random.rand(10, 10), dims=["a", "b"]  # No spatial coordinates
         )
 
         with pytest.raises(ValueError, match="Dataset must have either"):
@@ -224,10 +217,7 @@ class TestStatisticsProcessor:
 
     def test_initialization(self):
         """Test StatisticsProcessor initialization."""
-        processor = StatisticsProcessor(
-            mask_invalid=True,
-            outlier_method="iqr"
-        )
+        processor = StatisticsProcessor(mask_invalid=True, outlier_method="iqr")
 
         assert processor.mask_invalid is True
         assert processor.outlier_method == "iqr"
@@ -241,13 +231,11 @@ class TestStatisticsProcessor:
         weights = np.array([[1, 2, 1], [1, 3, 1]])
 
         data = xr.DataArray(
-            data_values,
-            dims=['y', 'x'],
-            coords={'x': [0, 1, 2], 'y': [0, 1]}
+            data_values, dims=["y", "x"], coords={"x": [0, 1, 2], "y": [0, 1]}
         )
 
         # Create dataset with variable structure for DLR data
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -268,12 +256,10 @@ class TestStatisticsProcessor:
         weights = np.ones((2, 3))
 
         data = xr.DataArray(
-            data_values,
-            dims=['y', 'x'],
-            coords={'x': [0, 1, 2], 'y': [0, 1]}
+            data_values, dims=["y", "x"], coords={"x": [0, 1, 2], "y": [0, 1]}
         )
 
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -294,12 +280,9 @@ class TestStatisticsProcessor:
         data_values = np.array([[100, 150, 1000], [120, 180, 160]])  # 1000 is outlier
         weights = np.ones((2, 3))
 
-        data = xr.DataArray(
-            data_values,
-            dims=['y', 'x']
-        )
+        data = xr.DataArray(data_values, dims=["y", "x"])
 
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -319,8 +302,8 @@ class TestStatisticsProcessor:
 
         weights = np.ones((5, 5))
 
-        data = xr.DataArray(normal_data, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(normal_data, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -340,15 +323,15 @@ class TestStatisticsProcessor:
         weights = np.ones((10, 10))
 
         # Create dataset with both variables
-        dataset = xr.Dataset({
-            'agbd_cog': xr.DataArray(biomass_data, dims=['y', 'x']),
-            'uncertainty': xr.DataArray(uncertainty_data, dims=['y', 'x'])
-        })
+        dataset = xr.Dataset(
+            {
+                "agbd_cog": xr.DataArray(biomass_data, dims=["y", "x"]),
+                "uncertainty": xr.DataArray(uncertainty_data, dims=["y", "x"]),
+            }
+        )
 
         stats = processor.compute_weighted_statistics(
-            dataset, weights,
-            variable="agbd_cog",
-            uncertainty_variable="uncertainty"
+            dataset, weights, variable="agbd_cog", uncertainty_variable="uncertainty"
         )
 
         assert stats.uncertainty_mean is not None
@@ -359,29 +342,21 @@ class TestStatisticsProcessor:
         """Test error when weight shape doesn't match data."""
         processor = StatisticsProcessor()
 
-        data = xr.DataArray(
-            np.random.rand(10, 10),
-            dims=['y', 'x']
-        )
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(np.random.rand(10, 10), dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         # Wrong weight shape
         weights = np.ones((5, 5))
 
         with pytest.raises(ValueError, match="Weight shape"):
-            processor.compute_weighted_statistics(
-                dataset, weights, variable="agbd_cog"
-            )
+            processor.compute_weighted_statistics(dataset, weights, variable="agbd_cog")
 
     def test_missing_variable(self):
         """Test error when requested variable doesn't exist."""
         processor = StatisticsProcessor()
 
-        data = xr.DataArray(
-            np.random.rand(10, 10),
-            dims=['y', 'x']
-        )
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(np.random.rand(10, 10), dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
         weights = np.ones((10, 10))
 
         with pytest.raises(ValueError, match="Variable 'missing_var' not found"):
@@ -399,11 +374,13 @@ class TestStatisticsProcessorEdgeCases:
 
         # Create data where points might be identified as outliers
         # Use values that will actually trigger outlier detection
-        data_values = np.array([[100, 100, 100], [100, 100, 10000]])  # One extreme outlier
+        data_values = np.array(
+            [[100, 100, 100], [100, 100, 10000]]
+        )  # One extreme outlier
         weights = np.ones((2, 3))
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -421,8 +398,8 @@ class TestStatisticsProcessorEdgeCases:
         data_values = np.array([[np.nan, np.inf, -np.inf], [np.nan, -1, np.nan]])
         weights = np.ones((2, 3))
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -440,8 +417,8 @@ class TestStatisticsProcessorEdgeCases:
         data_values = np.array([[150, np.nan, np.nan], [np.nan, np.nan, np.nan]])
         weights = np.ones((2, 3))
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -462,8 +439,8 @@ class TestStatisticsProcessorEdgeCases:
         data_values = np.array([[100, 200, 300]])
         weights = np.array([[0.1, 0.8, 0.1]])  # Heavy weight on 200
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -479,14 +456,14 @@ class TestStatisticsProcessorEdgeCases:
 
         # Create data with time dimension
         data_values = np.random.rand(3, 5, 5)  # time, y, x
-        time_coords = ['2020-01-01', '2020-01-02', '2020-01-03']
+        time_coords = ["2020-01-01", "2020-01-02", "2020-01-03"]
 
         data = xr.DataArray(
             data_values,
-            dims=['time', 'y', 'x'],
-            coords={'time': time_coords, 'x': range(5), 'y': range(5)}
+            dims=["time", "y", "x"],
+            coords={"time": time_coords, "x": range(5), "y": range(5)},
         )
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
         weights = np.ones((5, 5))
 
         stats = processor.compute_weighted_statistics(
@@ -506,14 +483,14 @@ class TestStatisticsProcessorEdgeCases:
 
         data = xr.DataArray(
             data_values,
-            dims=['band', 'y', 'x'],
-            coords={'band': ['agbd_cog', 'uncertainty'], 'x': range(5), 'y': range(5)}
+            dims=["band", "y", "x"],
+            coords={"band": ["agbd_cog", "uncertainty"], "x": range(5), "y": range(5)},
         )
 
         # Test selecting specific band
         try:
-            data_selected = data.sel(band='agbd_cog')
-            dataset = xr.Dataset({'agbd_cog': data_selected})
+            data_selected = data.sel(band="agbd_cog")
+            dataset = xr.Dataset({"agbd_cog": data_selected})
             weights = np.ones((5, 5))
 
             stats = processor.compute_weighted_statistics(
@@ -524,7 +501,7 @@ class TestStatisticsProcessorEdgeCases:
         except KeyError:
             # If band selection fails, use first band
             data_selected = data.isel(band=0)
-            dataset = xr.Dataset({'agbd_cog': data_selected})
+            dataset = xr.Dataset({"agbd_cog": data_selected})
             weights = np.ones((5, 5))
 
             stats = processor.compute_weighted_statistics(
@@ -537,15 +514,16 @@ class TestStatisticsProcessorEdgeCases:
         """Test handling when uncertainty variable is not found."""
         processor = StatisticsProcessor()
 
-        data = xr.DataArray(np.random.rand(5, 5), dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(np.random.rand(5, 5), dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
         weights = np.ones((5, 5))
 
         # Request uncertainty that doesn't exist
         stats = processor.compute_weighted_statistics(
-            dataset, weights,
+            dataset,
+            weights,
             variable="agbd_cog",
-            uncertainty_variable="missing_uncertainty"
+            uncertainty_variable="missing_uncertainty",
         )
 
         # Should compute main statistics without uncertainty
@@ -558,19 +536,14 @@ class TestStatisticsProcessorEdgeCases:
         processor = StatisticsProcessor()
 
         # Create problematic uncertainty data
-        data = xr.DataArray(np.random.rand(5, 5), dims=['y', 'x'])
-        uncertainty_data = xr.DataArray(np.full((5, 5), np.nan), dims=['y', 'x'])
+        data = xr.DataArray(np.random.rand(5, 5), dims=["y", "x"])
+        uncertainty_data = xr.DataArray(np.full((5, 5), np.nan), dims=["y", "x"])
 
-        dataset = xr.Dataset({
-            'agbd_cog': data,
-            'uncertainty': uncertainty_data
-        })
+        dataset = xr.Dataset({"agbd_cog": data, "uncertainty": uncertainty_data})
         weights = np.ones((5, 5))
 
         stats = processor.compute_weighted_statistics(
-            dataset, weights,
-            variable="agbd_cog",
-            uncertainty_variable="uncertainty"
+            dataset, weights, variable="agbd_cog", uncertainty_variable="uncertainty"
         )
 
         # Should handle uncertainty computation failure gracefully
@@ -579,13 +552,13 @@ class TestStatisticsProcessorEdgeCases:
 
     def test_invalid_outlier_method(self):
         """Test error with invalid outlier detection method."""
-        data = xr.DataArray(np.random.rand(5, 5), dims=['y', 'x'])
+        data = xr.DataArray(np.random.rand(5, 5), dims=["y", "x"])
         weights = np.ones((5, 5))
 
         # Create processor with invalid method
         processor = StatisticsProcessor(outlier_method="invalid")
 
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
 
         with pytest.raises(ValueError, match="Unknown outlier detection method"):
             processor.compute_weighted_statistics(dataset, weights, variable="agbd_cog")
@@ -594,10 +567,10 @@ class TestStatisticsProcessorEdgeCases:
         """Test handling of zero weights."""
         processor = StatisticsProcessor()
 
-        data = xr.DataArray(np.random.rand(5, 5), dims=['y', 'x'])
+        data = xr.DataArray(np.random.rand(5, 5), dims=["y", "x"])
         weights = np.zeros((5, 5))  # All zero weights
 
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -611,10 +584,10 @@ class TestStatisticsProcessorEdgeCases:
         """Test handling of negative weights."""
         processor = StatisticsProcessor()
 
-        data = xr.DataArray(np.random.rand(3, 3), dims=['y', 'x'])
+        data = xr.DataArray(np.random.rand(3, 3), dims=["y", "x"])
         weights = np.array([[-1, 1, 1], [1, 1, 1], [1, 1, 1]])  # One negative weight
 
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -628,15 +601,21 @@ class TestStatisticsProcessorEdgeCases:
         processor = StatisticsProcessor(mask_invalid=True)
 
         # Mix of valid, NaN, infinity, and negative values
-        data_values = np.array([
-            [100, np.nan, 150],
-            [np.inf, 200, -50],  # -50 should be masked as invalid (negative biomass)
-            [250, -np.inf, 300]
-        ])
+        data_values = np.array(
+            [
+                [100, np.nan, 150],
+                [
+                    np.inf,
+                    200,
+                    -50,
+                ],  # -50 should be masked as invalid (negative biomass)
+                [250, -np.inf, 300],
+            ]
+        )
         weights = np.ones((3, 3))
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -651,14 +630,11 @@ class TestStatisticsProcessorEdgeCases:
         """Test behavior when mask_invalid is disabled."""
         processor = StatisticsProcessor(mask_invalid=False)
 
-        data_values = np.array([
-            [100, np.nan, 150],
-            [200, 250, 300]
-        ])
+        data_values = np.array([[100, np.nan, 150], [200, 250, 300]])
         weights = np.ones((2, 3))
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -677,8 +653,8 @@ class TestStatisticsProcessorEdgeCases:
         data_values = np.random.normal(150, 25, (100, 100))
         weights = np.random.uniform(0.1, 1.0, (100, 100))
 
-        data = xr.DataArray(data_values, dims=['y', 'x'])
-        dataset = xr.Dataset({'agbd_cog': data})
+        data = xr.DataArray(data_values, dims=["y", "x"])
+        dataset = xr.Dataset({"agbd_cog": data})
 
         stats = processor.compute_weighted_statistics(
             dataset, weights, variable="agbd_cog"
@@ -686,18 +662,14 @@ class TestStatisticsProcessorEdgeCases:
 
         assert stats.count == 10000
         assert 120 < stats.mean < 180  # Should be around 150
-        assert 20 < stats.std < 30     # Should be around 25
+        assert 20 < stats.std < 30  # Should be around 25
 
     def test_dataarray_input_instead_of_dataset(self):
         """Test handling when DataArray is passed instead of Dataset."""
         processor = StatisticsProcessor()
 
         # Pass DataArray directly instead of Dataset
-        data = xr.DataArray(
-            np.random.rand(5, 5),
-            dims=['y', 'x'],
-            name='agbd_cog'
-        )
+        data = xr.DataArray(np.random.rand(5, 5), dims=["y", "x"], name="agbd_cog")
         weights = np.ones((5, 5))
 
         # This should work - processor should handle DataArray input
@@ -716,11 +688,9 @@ class TestStatisticsProcessorEdgeCases:
         data_values = np.random.rand(5, 5)
 
         data = xr.DataArray(
-            data_values,
-            dims=['y', 'x'],
-            coords={'x': range(5), 'y': range(5)}
+            data_values, dims=["y", "x"], coords={"x": range(5), "y": range(5)}
         )
-        dataset = xr.Dataset({'agbd_cog': data})
+        dataset = xr.Dataset({"agbd_cog": data})
         weights = np.ones((5, 5))
 
         # Test normal variable selection

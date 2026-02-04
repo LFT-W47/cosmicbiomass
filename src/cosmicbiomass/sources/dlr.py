@@ -37,7 +37,7 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2017-01-01/2017-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
+                crs="EPSG:32632",
             ),
             "agbd_2018": DatasetInfo(
                 id="agbd_2018",
@@ -47,7 +47,7 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2018-01-01/2018-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
+                crs="EPSG:32632",
             ),
             "agbd_2019": DatasetInfo(
                 id="agbd_2019",
@@ -57,7 +57,7 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2019-01-01/2019-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
+                crs="EPSG:32632",
             ),
             "agbd_2020": DatasetInfo(
                 id="agbd_2020",
@@ -67,7 +67,7 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2020-01-01/2020-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
+                crs="EPSG:32632",
             ),
             "agbd_2021": DatasetInfo(
                 id="agbd_2021",
@@ -77,7 +77,7 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2021-01-01/2021-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
+                crs="EPSG:32632",
             ),
             "agbd_2022": DatasetInfo(
                 id="agbd_2022",
@@ -87,7 +87,7 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2022-01-01/2022-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
+                crs="EPSG:32632",
             ),
             "agbd_2023": DatasetInfo(
                 id="agbd_2023",
@@ -97,18 +97,22 @@ class DLRBiomassSource(BiomassDataSource):
                 temporal_coverage="2023-01-01/2023-12-31",
                 units="Mg/ha",
                 uncertainty_available=True,
-                crs="EPSG:32632"
-            )
+                crs="EPSG:32632",
+            ),
         }
 
-    def load_data(self, dataset_id: str, bbox: tuple[float, float, float, float] | None = None) -> xr.Dataset:
+    def load_data(
+        self, dataset_id: str, bbox: tuple[float, float, float, float] | None = None
+    ) -> xr.Dataset:
         """Load DLR biomass data using STAC catalog."""
         datasets = self.get_available_datasets()
         if dataset_id not in datasets:
-            raise ValueError(f"Dataset {dataset_id} not available. Available: {list(datasets.keys())}")
+            raise ValueError(
+                f"Dataset {dataset_id} not available. Available: {list(datasets.keys())}"
+            )
 
         dataset_info = datasets[dataset_id]
-        year = dataset_id.split('_')[1]
+        year = dataset_id.split("_")[1]
 
         logger.info(f"Loading DLR dataset {dataset_id} via STAC")
 
@@ -117,6 +121,7 @@ class DLRBiomassSource(BiomassDataSource):
             # bbox is (minx, miny, maxx, maxy)
             # Convert to approximate edge size in meters
             from pyproj import Transformer
+
             transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
             # Transform bbox corners to meters for size calculation
@@ -153,13 +158,15 @@ class DLRBiomassSource(BiomassDataSource):
             logger.info(f"Successfully loaded dataset with shape: {ds.sizes}")
 
             # Add dataset metadata
-            ds.attrs.update({
-                'source': 'DLR',
-                'dataset_id': dataset_id,
-                'units': dataset_info.units,
-                'spatial_resolution': dataset_info.spatial_resolution,
-                'temporal_coverage': dataset_info.temporal_coverage
-            })
+            ds.attrs.update(
+                {
+                    "source": "DLR",
+                    "dataset_id": dataset_id,
+                    "units": dataset_info.units,
+                    "spatial_resolution": dataset_info.spatial_resolution,
+                    "temporal_coverage": dataset_info.temporal_coverage,
+                }
+            )
 
             return ds
 
@@ -175,10 +182,10 @@ class DLRBiomassSource(BiomassDataSource):
 
         dataset_info = datasets[dataset_id]
         return {
-            'source': self.source_name,
-            'dataset_info': dataset_info.dict(),
-            'data_format': 'GeoTIFF COG',
-            'coordinate_system': dataset_info.crs,
-            'processing_level': 'L3',
-            'quality_flags': 'Available in uncertainty band'
+            "source": self.source_name,
+            "dataset_info": dataset_info.dict(),
+            "data_format": "GeoTIFF COG",
+            "coordinate_system": dataset_info.crs,
+            "processing_level": "L3",
+            "quality_flags": "Available in uncertainty band",
         }

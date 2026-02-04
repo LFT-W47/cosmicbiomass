@@ -38,7 +38,7 @@ if not logger.handlers:
     # Modern logging format with timestamp and level
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
@@ -46,29 +46,25 @@ if not logger.handlers:
 # Public API
 __all__ = [
     # Main functions
-    'get_average_biomass',
-    'get_average_biomass_timeseries',
-    'get_seasonal_biomass_timeseries',
-    'list_available_datasets',
-    'validate_coordinates',
-    'list_available_sources',
-
+    "get_average_biomass",
+    "get_average_biomass_timeseries",
+    "get_seasonal_biomass_timeseries",
+    "list_available_datasets",
+    "validate_coordinates",
+    "list_available_sources",
     # Configuration
-    'BiomassConfig',
-    'FootprintConfig',
-
+    "BiomassConfig",
+    "FootprintConfig",
     # Extension points
-    'register_source',
-    'BiomassDataSource',
-    'DLRBiomassSource',
-
+    "register_source",
+    "BiomassDataSource",
+    "DLRBiomassSource",
     # Processing classes
-    'BiomassStatistics',
-    'FootprintProcessor',
-    'StatisticsProcessor',
-
+    "BiomassStatistics",
+    "FootprintProcessor",
+    "StatisticsProcessor",
     # Legacy compatibility (deprecated)
-    'CosmicBiomassConfig',
+    "CosmicBiomassConfig",
 ]
 
 
@@ -85,6 +81,6 @@ class CosmicBiomassConfig(BiomassConfig):
         warnings.warn(
             "CosmicBiomassConfig is deprecated. Use BiomassConfig instead.",
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
         super().__init__(**kwargs)

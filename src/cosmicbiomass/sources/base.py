@@ -21,7 +21,9 @@ class BiomassDataSource(ABC):
         pass
 
     @abstractmethod
-    def load_data(self, dataset_id: str, bbox: tuple[float, float, float, float] | None = None) -> xr.Dataset:
+    def load_data(
+        self, dataset_id: str, bbox: tuple[float, float, float, float] | None = None
+    ) -> xr.Dataset:
         """Load biomass data for the specified dataset and bounding box."""
         pass
 
@@ -39,6 +41,7 @@ class BiomassDataSource(ABC):
 
 class DatasetInfo(BaseModel):
     """Information about a biomass dataset."""
+
     id: str
     name: str
     description: str

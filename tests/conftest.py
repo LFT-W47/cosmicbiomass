@@ -56,19 +56,14 @@ def invalid_coordinates():
 def sample_config():
     """Sample BiomassConfig for testing."""
     return BiomassConfig(
-        data_dir="test_data",
-        resolution=10,
-        stac_url="https://test.stac.catalog/v1"
+        data_dir="test_data", resolution=10, stac_url="https://test.stac.catalog/v1"
     )
 
 
 @pytest.fixture
 def sample_footprint_config():
     """Sample FootprintConfig for testing."""
-    return FootprintConfig(
-        radius=240.0,
-        shape="circular"
-    )
+    return FootprintConfig(radius=240.0, shape="circular")
 
 
 @pytest.fixture
@@ -82,7 +77,7 @@ def sample_dataset_info():
         temporal_coverage="2021",
         units="Mg/ha",
         uncertainty_available=True,
-        crs="EPSG:32632"
+        crs="EPSG:32632",
     )
 
 
@@ -102,16 +97,9 @@ def sample_biomass_data():
     # Create DataArray
     data = xr.DataArray(
         biomass_values,
-        dims=['y', 'x'],
-        coords={
-            'x': x_coords,
-            'y': y_coords,
-            'band': 'agbd_cog'
-        },
-        attrs={
-            'units': 'Mg/ha',
-            'description': 'Test aboveground biomass density'
-        }
+        dims=["y", "x"],
+        coords={"x": x_coords, "y": y_coords, "band": "agbd_cog"},
+        attrs={"units": "Mg/ha", "description": "Test aboveground biomass density"},
     )
 
     return data
@@ -130,18 +118,18 @@ def sample_biomass_dataset():
     uncertainty_values = np.random.normal(15, 5, (len(y_coords), len(x_coords)))
 
     # Create dataset with multiple variables
-    dataset = xr.Dataset({
-        'agbd_cog': xr.DataArray(
-            biomass_values,
-            dims=['y', 'x'],
-            coords={'x': x_coords, 'y': y_coords}
-        ),
-        'agbd_cog_uncertainty': xr.DataArray(
-            uncertainty_values,
-            dims=['y', 'x'],
-            coords={'x': x_coords, 'y': y_coords}
-        )
-    })
+    dataset = xr.Dataset(
+        {
+            "agbd_cog": xr.DataArray(
+                biomass_values, dims=["y", "x"], coords={"x": x_coords, "y": y_coords}
+            ),
+            "agbd_cog_uncertainty": xr.DataArray(
+                uncertainty_values,
+                dims=["y", "x"],
+                coords={"x": x_coords, "y": y_coords},
+            ),
+        }
+    )
 
     return dataset
 
@@ -156,7 +144,7 @@ def sample_weights():
 
     for i in range(size):
         for j in range(size):
-            distance = np.sqrt((i - center)**2 + (j - center)**2)
+            distance = np.sqrt((i - center) ** 2 + (j - center) ** 2)
             if distance <= 8:  # Radius of 8 pixels
                 weights[i, j] = 1.0
 
@@ -177,7 +165,7 @@ def mock_data_source():
             description="Mock dataset for testing",
             spatial_resolution=100.0,
             temporal_coverage="2021",
-            units="Mg/ha"
+            units="Mg/ha",
         )
     }
     mock_source.get_metadata.return_value = {
@@ -185,8 +173,8 @@ def mock_data_source():
         "dataset_info": {
             "units": "Mg/ha",
             "spatial_resolution": 100.0,
-            "temporal_coverage": "2021"
-        }
+            "temporal_coverage": "2021",
+        },
     }
 
     return mock_source
@@ -196,6 +184,7 @@ def mock_data_source():
 def suppress_warnings():
     """Suppress specific warnings during tests."""
     import warnings
+
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
         warnings.simplefilter("ignore", UserWarning)
@@ -205,15 +194,9 @@ def suppress_warnings():
 # Pytest configuration
 def pytest_configure(config):
     """Configure pytest with custom markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -233,27 +216,26 @@ def mock_biomass_cube():
     time_coords = ["2020-01-01", "2021-01-01", "2022-01-01"]
 
     # Synthetic biomass values (Mg/ha) with some spatial variation
-    biomass_data = np.random.normal(150, 30, (len(time_coords), len(y_coords), len(x_coords)))
+    biomass_data = np.random.normal(
+        150, 30, (len(time_coords), len(y_coords), len(x_coords))
+    )
     biomass_data = np.clip(biomass_data, 0, 400)  # Realistic biomass range
 
     # Create xarray Dataset
     ds = xr.Dataset(
         {
-            "agbd": (["time", "y", "x"], biomass_data, {
-                "units": "Mg/ha",
-                "long_name": "Above-ground biomass density",
-                "description": "Synthetic test data"
-            })
+            "agbd": (
+                ["time", "y", "x"],
+                biomass_data,
+                {
+                    "units": "Mg/ha",
+                    "long_name": "Above-ground biomass density",
+                    "description": "Synthetic test data",
+                },
+            )
         },
-        coords={
-            "x": x_coords,
-            "y": y_coords,
-            "time": pd.to_datetime(time_coords)
-        },
-        attrs={
-            "source": "Mock data for testing",
-            "crs": "EPSG:4326"
-        }
+        coords={"x": x_coords, "y": y_coords, "time": pd.to_datetime(time_coords)},
+        attrs={"source": "Mock data for testing", "crs": "EPSG:4326"},
     )
 
     return ds
@@ -268,7 +250,7 @@ def mock_fractional_weights():
     y, x = np.ogrid[:size, :size]
 
     # Distance from center
-    distance = np.sqrt((x - center)**2 + (y - center)**2)
+    distance = np.sqrt((x - center) ** 2 + (y - center) ** 2)
 
     # Circular weights with gradual falloff
     weights = np.maximum(0, 1 - distance / (size / 2))
@@ -292,7 +274,7 @@ def mock_dlr_source():
         "name": "Mock DLR Source",
         "provider": "Test Provider",
         "units": "Mg/ha",
-        "description": "Mock source for testing"
+        "description": "Mock source for testing",
     }
 
     return source
@@ -301,7 +283,7 @@ def mock_dlr_source():
 @pytest.fixture
 def mock_cubo_create(mock_biomass_cube):
     """Mock the cubo.create function to return synthetic data."""
-    with patch('cosmicbiomass.cubo.create') as mock_create:
+    with patch("cosmicbiomass.cubo.create") as mock_create:
         mock_create.return_value = mock_biomass_cube
         yield mock_create
 
@@ -309,6 +291,7 @@ def mock_cubo_create(mock_biomass_cube):
 @pytest.fixture
 def mock_rasterio_features():
     """Mock rasterio.features.rasterize for testing fractional coverage."""
+
     def mock_rasterize(shapes, out_shape, transform, fill=0, **kwargs):
         """Create a simple circular mask for testing."""
         height, width = out_shape
@@ -317,10 +300,10 @@ def mock_rasterio_features():
 
         # Simple circular mask
         radius = min(height, width) // 3
-        mask = ((x - center_x)**2 + (y - center_y)**2) <= radius**2
+        mask = ((x - center_x) ** 2 + (y - center_y) ** 2) <= radius**2
         return mask.astype(np.float32)
 
-    with patch('cosmicbiomass.features.rasterize', side_effect=mock_rasterize):
+    with patch("cosmicbiomass.features.rasterize", side_effect=mock_rasterize):
         yield
 
 
@@ -339,8 +322,8 @@ def temp_config():
     # Create test config with faster settings
     test_config = cosmicbiomass.CosmicBiomassConfig(
         default_upsample_factor=2,  # Faster for testing
-        edge_size_buffer=1.2,       # Smaller buffer
-        n_jobs=1,                   # Single threaded for deterministic tests
+        edge_size_buffer=1.2,  # Smaller buffer
+        n_jobs=1,  # Single threaded for deterministic tests
     )
 
     # Replace global config
@@ -379,5 +362,3 @@ pytest.mark.mock = pytest.mark.mock
 def test_data_dir():
     """Directory for test data files."""
     return Path(__file__).parent / "data"
-
-

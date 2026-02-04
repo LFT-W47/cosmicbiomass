@@ -26,7 +26,7 @@ class TestDatasetInfo:
             description="A test dataset",
             spatial_resolution=100.0,
             temporal_coverage="2021",
-            units="Mg/ha"
+            units="Mg/ha",
         )
 
         assert info.id == "test_id"
@@ -46,7 +46,7 @@ class TestDatasetInfo:
             temporal_coverage="2021",
             units="Mg/ha",
             uncertainty_available=True,
-            crs="EPSG:32632"
+            crs="EPSG:32632",
         )
 
         assert info.uncertainty_available is True
@@ -89,20 +89,22 @@ class TestDLRBiomassSource:
         assert dataset_info.uncertainty_available is True
         assert dataset_info.crs == "EPSG:32632"
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_load_data_success(self, mock_cubo_create):
         """Test successful data loading from STAC."""
         # Mock xarray dataset
-        mock_data = xr.Dataset({
-            'agbd': xr.DataArray(
-                np.random.rand(100, 100),
-                dims=['y', 'x'],
-                coords={
-                    'x': np.linspace(10.0, 12.0, 100),
-                    'y': np.linspace(51.0, 53.0, 100)
-                }
-            )
-        })
+        mock_data = xr.Dataset(
+            {
+                "agbd": xr.DataArray(
+                    np.random.rand(100, 100),
+                    dims=["y", "x"],
+                    coords={
+                        "x": np.linspace(10.0, 12.0, 100),
+                        "y": np.linspace(51.0, 53.0, 100),
+                    },
+                )
+            }
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -113,9 +115,9 @@ class TestDLRBiomassSource:
 
         # Check that cubo was called with correct parameters
         call_kwargs = mock_cubo_create.call_args[1]
-        assert call_kwargs['collection'] == "FOREST_STRUCTURE_DE_AGBD_P1Y"
-        assert call_kwargs['start_date'] == "2021-01-01"
-        assert call_kwargs['end_date'] == "2021-12-31"
+        assert call_kwargs["collection"] == "FOREST_STRUCTURE_DE_AGBD_P1Y"
+        assert call_kwargs["start_date"] == "2021-01-01"
+        assert call_kwargs["end_date"] == "2021-12-31"
 
     def test_load_data_invalid_dataset(self):
         """Test handling of invalid dataset names."""
@@ -124,7 +126,7 @@ class TestDLRBiomassSource:
         with pytest.raises(ValueError, match="Dataset invalid_dataset not available"):
             source.load_data("invalid_dataset", bbox=(10.0, 51.0, 12.0, 53.0))
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_load_data_cubo_error(self, mock_cubo_create):
         """Test handling of cubo errors."""
         mock_cubo_create.side_effect = Exception("STAC service unavailable")
@@ -134,15 +136,12 @@ class TestDLRBiomassSource:
         with pytest.raises(Exception, match="STAC service unavailable"):
             source.load_data("agbd_2021", bbox=(10.0, 51.0, 12.0, 53.0))
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_load_data_no_bbox(self, mock_cubo_create):
         """Test loading data without bbox (using defaults)."""
-        mock_data = xr.Dataset({
-            'agbd': xr.DataArray(
-                np.random.rand(200, 200),
-                dims=['y', 'x']
-            )
-        })
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(200, 200), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -152,30 +151,34 @@ class TestDLRBiomassSource:
 
         # Check default values were used
         call_kwargs = mock_cubo_create.call_args[1]
-        assert call_kwargs['lat'] == 52.09  # Default Hohes Holz
-        assert call_kwargs['lon'] == 11.226
-        assert call_kwargs['edge_size'] == 2000  # Default 2km
+        assert call_kwargs["lat"] == 52.09  # Default Hohes Holz
+        assert call_kwargs["lon"] == 11.226
+        assert call_kwargs["edge_size"] == 2000  # Default 2km
 
-    @patch('pyproj.Transformer')
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("pyproj.Transformer")
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_bbox_transformation(self, mock_cubo_create, mock_transformer_class):
         """Test bbox transformation to edge_size calculation."""
         # Mock transformer
         mock_transformer = Mock()
         mock_transformer.transform.side_effect = [
             (1000000, 6000000),  # x1, y1 in meters
-            (1010000, 6010000)   # x2, y2 in meters
+            (1010000, 6010000),  # x2, y2 in meters
         ]
         mock_transformer_class.from_crs.return_value = mock_transformer
 
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(100, 100), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(100, 100), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
         source.load_data("agbd_2021", bbox=(10.0, 51.0, 12.0, 53.0))
 
         # Check transformer was used correctly
-        mock_transformer_class.from_crs.assert_called_once_with("EPSG:4326", "EPSG:3857", always_xy=True)
+        mock_transformer_class.from_crs.assert_called_once_with(
+            "EPSG:4326", "EPSG:3857", always_xy=True
+        )
 
         # Check bbox corners were transformed
         assert mock_transformer.transform.call_count == 2
@@ -185,7 +188,7 @@ class TestDLRBiomassSource:
         # Check edge_size calculation (max of width/height difference)
         call_kwargs = mock_cubo_create.call_args[1]
         expected_edge_size = max(abs(1010000 - 1000000), abs(6010000 - 6000000))
-        assert call_kwargs['edge_size'] == expected_edge_size
+        assert call_kwargs["edge_size"] == expected_edge_size
 
     def test_get_metadata_success(self):
         """Test successful metadata retrieval."""
@@ -206,25 +209,29 @@ class TestDLRBiomassSource:
         with pytest.raises(ValueError, match="Dataset nonexistent not available"):
             source.get_metadata("nonexistent")
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_dataset_attributes(self, mock_cubo_create):
         """Test that dataset attributes are properly set."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
         result = source.load_data("agbd_2017")
 
         # Check attributes were added
-        assert result.attrs['source'] == 'DLR'
-        assert result.attrs['dataset_id'] == 'agbd_2017'
-        assert result.attrs['units'] == 'Mg/ha'
-        assert result.attrs['spatial_resolution'] == 10.0
+        assert result.attrs["source"] == "DLR"
+        assert result.attrs["dataset_id"] == "agbd_2017"
+        assert result.attrs["units"] == "Mg/ha"
+        assert result.attrs["spatial_resolution"] == 10.0
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_different_years(self, mock_cubo_create):
         """Test loading different years calls cubo with correct dates."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -232,19 +239,21 @@ class TestDLRBiomassSource:
         # Test 2017 dataset
         source.load_data("agbd_2017")
         call_kwargs_2017 = mock_cubo_create.call_args[1]
-        assert call_kwargs_2017['start_date'] == "2017-01-01"
-        assert call_kwargs_2017['end_date'] == "2017-12-31"
+        assert call_kwargs_2017["start_date"] == "2017-01-01"
+        assert call_kwargs_2017["end_date"] == "2017-12-31"
 
         # Test 2020 dataset
         source.load_data("agbd_2020")
         call_kwargs_2020 = mock_cubo_create.call_args[1]
-        assert call_kwargs_2020['start_date'] == "2020-01-01"
-        assert call_kwargs_2020['end_date'] == "2020-12-31"
+        assert call_kwargs_2020["start_date"] == "2020-01-01"
+        assert call_kwargs_2020["end_date"] == "2020-12-31"
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_cubo_parameters(self, mock_cubo_create):
         """Test that all cubo parameters are set correctly."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -253,18 +262,20 @@ class TestDLRBiomassSource:
         call_kwargs = mock_cubo_create.call_args[1]
 
         # Check all required parameters
-        assert 'lat' in call_kwargs
-        assert 'lon' in call_kwargs
-        assert call_kwargs['stac'] == "https://geoservice.dlr.de/eoc/ogc/stac/v1"
-        assert call_kwargs['collection'] == "FOREST_STRUCTURE_DE_AGBD_P1Y"
-        assert call_kwargs['gee'] is False
-        assert call_kwargs['units'] == "m"
-        assert call_kwargs['resolution'] == 10
+        assert "lat" in call_kwargs
+        assert "lon" in call_kwargs
+        assert call_kwargs["stac"] == "https://geoservice.dlr.de/eoc/ogc/stac/v1"
+        assert call_kwargs["collection"] == "FOREST_STRUCTURE_DE_AGBD_P1Y"
+        assert call_kwargs["gee"] is False
+        assert call_kwargs["units"] == "m"
+        assert call_kwargs["resolution"] == 10
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_edge_case_small_bbox(self, mock_cubo_create):
         """Test handling of very small bounding boxes."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(10, 10), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(10, 10), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -275,10 +286,12 @@ class TestDLRBiomassSource:
         assert isinstance(result, xr.Dataset)
         mock_cubo_create.assert_called_once()
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_edge_case_large_bbox(self, mock_cubo_create):
         """Test handling of very large bounding boxes."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(1000, 1000), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(1000, 1000), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -309,11 +322,11 @@ class TestDLRBiomassSource:
         source = DLRBiomassSource(self.config)
 
         assert source.source_name == "DLR"
-        assert hasattr(source, 'stac_url')
-        assert hasattr(source, 'collection')
-        assert hasattr(source, 'resolution')
+        assert hasattr(source, "stac_url")
+        assert hasattr(source, "collection")
+        assert hasattr(source, "resolution")
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_stac_service_timeout(self, mock_cubo_create):
         """Test handling of STAC service timeout."""
         mock_cubo_create.side_effect = TimeoutError("STAC service timeout")
@@ -323,7 +336,7 @@ class TestDLRBiomassSource:
         with pytest.raises(TimeoutError, match="STAC service timeout"):
             source.load_data("agbd_2021", bbox=(10.0, 51.0, 12.0, 53.0))
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_invalid_stac_response(self, mock_cubo_create):
         """Test handling of invalid STAC response."""
         mock_cubo_create.side_effect = ValueError("Invalid STAC collection")
@@ -333,7 +346,7 @@ class TestDLRBiomassSource:
         with pytest.raises(ValueError, match="Invalid STAC collection"):
             source.load_data("agbd_2020")
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_empty_dataset_response(self, mock_cubo_create):
         """Test handling of empty dataset response."""
         # Return empty dataset
@@ -346,9 +359,11 @@ class TestDLRBiomassSource:
         assert isinstance(result, xr.Dataset)
         assert len(result.data_vars) == 0
 
-    @patch('pyproj.Transformer')
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
-    def test_coordinate_transformation_error(self, mock_cubo_create, mock_transformer_class):
+    @patch("pyproj.Transformer")
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
+    def test_coordinate_transformation_error(
+        self, mock_cubo_create, mock_transformer_class
+    ):
         """Test handling of coordinate transformation errors."""
         # Mock transformer to raise error
         mock_transformer_class.from_crs.side_effect = Exception("Projection error")
@@ -358,10 +373,12 @@ class TestDLRBiomassSource:
         with pytest.raises(Exception, match="Projection error"):
             source.load_data("agbd_2021", bbox=(10.0, 51.0, 12.0, 53.0))
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_load_data_with_center_calculation(self, mock_cubo_create):
         """Test that center coordinates are calculated correctly from bbox."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -373,13 +390,15 @@ class TestDLRBiomassSource:
         expected_center_lon = (10.0 + 12.0) / 2  # 11.0
         expected_center_lat = (50.0 + 52.0) / 2  # 51.0
 
-        assert call_kwargs['lat'] == expected_center_lat
-        assert call_kwargs['lon'] == expected_center_lon
+        assert call_kwargs["lat"] == expected_center_lat
+        assert call_kwargs["lon"] == expected_center_lon
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_dataset_attributes_comprehensive(self, mock_cubo_create):
         """Test comprehensive dataset attribute setting."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -387,11 +406,11 @@ class TestDLRBiomassSource:
 
         # Check all attributes are properly set
         expected_attrs = {
-            'source': 'DLR',
-            'dataset_id': 'agbd_2021',
-            'units': 'Mg/ha',
-            'spatial_resolution': 10.0,
-            'temporal_coverage': '2021-01-01/2021-12-31'
+            "source": "DLR",
+            "dataset_id": "agbd_2021",
+            "units": "Mg/ha",
+            "spatial_resolution": 10.0,
+            "temporal_coverage": "2021-01-01/2021-12-31",
         }
 
         for key, expected_value in expected_attrs.items():
@@ -413,92 +432,110 @@ class TestDLRBiomassSource:
         dataset_info = metadata["dataset_info"]
         assert dataset_info["id"] == "agbd_2020"
         assert dataset_info["name"] == "AGBD 2020"
-        assert dataset_info["description"] == "DLR Global Aboveground Biomass Density 2020"
+        assert (
+            dataset_info["description"] == "DLR Global Aboveground Biomass Density 2020"
+        )
         assert dataset_info["spatial_resolution"] == 10.0
         assert dataset_info["temporal_coverage"] == "2020-01-01/2020-12-31"
         assert dataset_info["units"] == "Mg/ha"
         assert dataset_info["uncertainty_available"] is True
         assert dataset_info["crs"] == "EPSG:32632"
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_cubo_logging_parameters(self, mock_cubo_create):
         """Test that cubo parameters are logged correctly."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
 
-        with patch('cosmicbiomass.sources.dlr.logger') as mock_logger:
+        with patch("cosmicbiomass.sources.dlr.logger") as mock_logger:
             source.load_data("agbd_2017", bbox=(11.0, 52.0, 11.5, 52.5))
 
             # Check logging calls
             mock_logger.info.assert_any_call("Loading DLR dataset agbd_2017 via STAC")
             mock_logger.debug.assert_called()  # Should have debug call for parameters
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_successful_loading_logging(self, mock_cubo_create):
         """Test logging of successful data loading."""
-        mock_data = xr.Dataset({
-            'agbd': xr.DataArray(np.random.rand(100, 100), dims=['y', 'x'])
-        })
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(100, 100), dims=["y", "x"])}
+        )
         # Mock the sizes property to return the expected dict
         mock_data = Mock(spec=xr.Dataset)
-        mock_data.sizes = {'y': 100, 'x': 100}
+        mock_data.sizes = {"y": 100, "x": 100}
         mock_data.attrs = {}
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
 
-        with patch('cosmicbiomass.sources.dlr.logger') as mock_logger:
+        with patch("cosmicbiomass.sources.dlr.logger") as mock_logger:
             source.load_data("agbd_2021")
 
             # Check success logging
-            mock_logger.info.assert_any_call("Successfully loaded dataset with shape: {'y': 100, 'x': 100}")
+            mock_logger.info.assert_any_call(
+                "Successfully loaded dataset with shape: {'y': 100, 'x': 100}"
+            )
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_error_logging(self, mock_cubo_create):
         """Test error logging when STAC fails."""
         mock_cubo_create.side_effect = Exception("STAC network error")
 
         source = DLRBiomassSource(self.config)
 
-        with patch('cosmicbiomass.sources.dlr.logger') as mock_logger:
+        with patch("cosmicbiomass.sources.dlr.logger") as mock_logger:
             with pytest.raises(Exception, match="STAC network error"):
                 source.load_data("agbd_2021")
 
             # Check error logging
-            mock_logger.error.assert_called_with("Failed to load via STAC: STAC network error")
+            mock_logger.error.assert_called_with(
+                "Failed to load via STAC: STAC network error"
+            )
 
     def test_dataset_year_extraction(self):
         """Test that year is correctly extracted from dataset_id."""
         source = DLRBiomassSource(self.config)
 
         # Mock cubo to capture the parameters
-        with patch('cosmicbiomass.sources.dlr.cubo.create') as mock_cubo_create:
-            mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        with patch("cosmicbiomass.sources.dlr.cubo.create") as mock_cubo_create:
+            mock_data = xr.Dataset(
+                {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+            )
             mock_cubo_create.return_value = mock_data
 
             # Test each year
-            for dataset_id, expected_year in [("agbd_2017", "2017"), ("agbd_2020", "2020"), ("agbd_2021", "2021")]:
+            for dataset_id, expected_year in [
+                ("agbd_2017", "2017"),
+                ("agbd_2020", "2020"),
+                ("agbd_2021", "2021"),
+            ]:
                 source.load_data(dataset_id)
 
                 call_kwargs = mock_cubo_create.call_args[1]
-                assert call_kwargs['start_date'] == f"{expected_year}-01-01"
-                assert call_kwargs['end_date'] == f"{expected_year}-12-31"
+                assert call_kwargs["start_date"] == f"{expected_year}-01-01"
+                assert call_kwargs["end_date"] == f"{expected_year}-12-31"
 
-    @patch('pyproj.Transformer')
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
-    def test_bbox_edge_size_calculation_precision(self, mock_cubo_create, mock_transformer_class):
+    @patch("pyproj.Transformer")
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
+    def test_bbox_edge_size_calculation_precision(
+        self, mock_cubo_create, mock_transformer_class
+    ):
         """Test precise edge size calculation from bbox."""
         # Mock transformer with specific values
         mock_transformer = Mock()
         mock_transformer.transform.side_effect = [
-            (500000, 5800000),   # x1, y1 in meters
-            (520000, 5830000)    # x2, y2 in meters
+            (500000, 5800000),  # x1, y1 in meters
+            (520000, 5830000),  # x2, y2 in meters
         ]
         mock_transformer_class.from_crs.return_value = mock_transformer
 
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -511,12 +548,14 @@ class TestDLRBiomassSource:
         height_diff = abs(5830000 - 5800000)  # 30000
         expected_edge_size = max(width_diff, height_diff)  # 30000
 
-        assert call_kwargs['edge_size'] == expected_edge_size
+        assert call_kwargs["edge_size"] == expected_edge_size
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_configuration_inheritance(self, mock_cubo_create):
         """Test that source properly inherits from BiomassDataSource."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(10, 10), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(10, 10), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         # Test with different config
@@ -542,10 +581,12 @@ class TestDLRBiomassSource:
         assert isinstance(source.collection, str)
         assert isinstance(source.resolution, int)
 
-    @patch('cosmicbiomass.sources.dlr.cubo.create')
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
     def test_all_cubo_parameters_set(self, mock_cubo_create):
         """Test that all required cubo parameters are set correctly."""
-        mock_data = xr.Dataset({'agbd': xr.DataArray(np.random.rand(50, 50), dims=['y', 'x'])})
+        mock_data = xr.Dataset(
+            {"agbd": xr.DataArray(np.random.rand(50, 50), dims=["y", "x"])}
+        )
         mock_cubo_create.return_value = mock_data
 
         source = DLRBiomassSource(self.config)
@@ -554,15 +595,25 @@ class TestDLRBiomassSource:
         call_kwargs = mock_cubo_create.call_args[1]
 
         # Verify all expected parameters are present
-        required_params = ['lat', 'lon', 'stac', 'collection', 'gee',
-                          'start_date', 'end_date', 'edge_size', 'units', 'resolution']
+        required_params = [
+            "lat",
+            "lon",
+            "stac",
+            "collection",
+            "gee",
+            "start_date",
+            "end_date",
+            "edge_size",
+            "units",
+            "resolution",
+        ]
 
         for param in required_params:
             assert param in call_kwargs, f"Missing parameter: {param}"
 
         # Verify specific values
-        assert call_kwargs['stac'] == "https://geoservice.dlr.de/eoc/ogc/stac/v1"
-        assert call_kwargs['collection'] == "FOREST_STRUCTURE_DE_AGBD_P1Y"
-        assert call_kwargs['gee'] is False
-        assert call_kwargs['units'] == "m"
-        assert call_kwargs['resolution'] == 10
+        assert call_kwargs["stac"] == "https://geoservice.dlr.de/eoc/ogc/stac/v1"
+        assert call_kwargs["collection"] == "FOREST_STRUCTURE_DE_AGBD_P1Y"
+        assert call_kwargs["gee"] is False
+        assert call_kwargs["units"] == "m"
+        assert call_kwargs["resolution"] == 10

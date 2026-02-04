@@ -112,7 +112,7 @@ Extract footprint-weighted biomass statistics for a location.
 - `footprint_shape` (str): "circular", "gaussian", or "crns" (default: "crns")
 - `include_uncertainty` (bool): Include uncertainty estimation (default: True)
 - `outlier_method` (str): "iqr", "zscore", or None for outlier detection
-- `output_units` (str): "Mg/ha" (default) or "kg/m^2" (renames/scales biomass columns)
+- `output_units` (str): "Mg/ha" (default) or "kg/m^2" (scales biomass columns)
 - `timestamp_index` (bool): If True and a year can be inferred (DLR), index by a year-anchored DatetimeIndex
 
 **Returns:**

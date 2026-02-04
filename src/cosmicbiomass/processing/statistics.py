@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 class BiomassStatistics(BaseModel):
     """Container for biomass statistics results."""
+
     mean: float
     std: float
     median: float
@@ -46,7 +47,7 @@ class StatisticsProcessor:
         data: xr.Dataset,
         weights: np.ndarray,
         variable: str = "agbd_cog",
-        uncertainty_variable: str | None = None
+        uncertainty_variable: str | None = None,
     ) -> BiomassStatistics:
         """
         Compute weighted statistics for biomass data.
@@ -63,15 +64,17 @@ class StatisticsProcessor:
         logger.info(f"Computing weighted statistics for variable: {variable}")
 
         # Handle both Dataset and DataArray inputs
-        if hasattr(data, 'data_vars'):
+        if hasattr(data, "data_vars"):
             # It's a Dataset
             if variable not in data.data_vars:
                 # Try to find the variable in a multi-band structure
-                if 'variable' in data.dims:
+                if "variable" in data.dims:
                     try:
                         data_array = data.sel(variable=variable)
                     except KeyError as e:
-                        available_vars = list(data.coords.get('variable', data.data_vars.keys()))
+                        available_vars = list(
+                            data.coords.get("variable", data.data_vars.keys())
+                        )
                         raise ValueError(
                             f"Variable '{variable}' not found. Available: {available_vars}"
                         ) from e
@@ -82,7 +85,7 @@ class StatisticsProcessor:
         else:
             # It's a DataArray - handle band selection
             data_array = data
-            if 'band' in data_array.dims:
+            if "band" in data_array.dims:
                 logger.info(f"Available bands: {list(data_array.band.values)}")
                 try:
                     # Try to select the agbd_cog band specifically
@@ -91,27 +94,41 @@ class StatisticsProcessor:
                 except (KeyError, ValueError):
                     # Fallback to first band if agbd_cog not found
                     available_bands = list(data_array.band.values)
-                    logger.warning(f"agbd_cog band selection failed, available bands: {available_bands}")
+                    logger.warning(
+                        f"agbd_cog band selection failed, available bands: {available_bands}"
+                    )
                     data_array = data_array.isel(band=0)
                     logger.info(f"Using first available band: {data_array.band.values}")
 
             # If DataArray has a name and it doesn't match, log a warning
-            if hasattr(data_array, 'name') and data_array.name and data_array.name != variable:
-                logger.debug(f"Requested variable '{variable}' but DataArray has name '{data_array.name}'")
+            if (
+                hasattr(data_array, "name")
+                and data_array.name
+                and data_array.name != variable
+            ):
+                logger.debug(
+                    f"Requested variable '{variable}' but DataArray has name '{data_array.name}'"
+                )
 
         # Handle temporal dimension if present
-        if 'time' in data_array.dims:
+        if "time" in data_array.dims:
             # Use the most recent time slice
             data_array = data_array.isel(time=-1)
 
         # Ensure weights match data dimensions
         if weights.shape != data_array.shape[-2:]:  # Last two dims should be spatial
-            raise ValueError(f"Weight shape {weights.shape} doesn't match data spatial shape {data_array.shape[-2:]}")
+            raise ValueError(
+                f"Weight shape {weights.shape} doesn't match data spatial shape {data_array.shape[-2:]}"
+            )
 
         # Flatten arrays for easier processing
         if data_array.ndim > 2:
             # Handle multi-dimensional data (e.g., with band/variable dimension)
-            data_flat = data_array.values.flatten() if hasattr(data_array, 'values') else data_array.flatten()
+            data_flat = (
+                data_array.values.flatten()
+                if hasattr(data_array, "values")
+                else data_array.flatten()
+            )
         else:
             data_flat = data_array.values.flatten()
 
@@ -123,8 +140,7 @@ class StatisticsProcessor:
         if not np.any(valid_mask):
             logger.warning("No valid data points found for statistics computation")
             return BiomassStatistics(
-                mean=np.nan, std=np.nan, median=np.nan,
-                min=np.nan, max=np.nan, count=0
+                mean=np.nan, std=np.nan, median=np.nan, min=np.nan, max=np.nan, count=0
             )
 
         # Apply valid mask
@@ -133,15 +149,21 @@ class StatisticsProcessor:
 
         # Apply outlier detection if requested
         if self.outlier_method:
-            outlier_mask = self._detect_outliers(data_masked, method=self.outlier_method)
+            outlier_mask = self._detect_outliers(
+                data_masked, method=self.outlier_method
+            )
             data_masked = data_masked[~outlier_mask]
             weights_masked = weights_masked[~outlier_mask]
 
             if len(data_masked) == 0:
                 logger.warning("All data points identified as outliers")
                 return BiomassStatistics(
-                    mean=np.nan, std=np.nan, median=np.nan,
-                    min=np.nan, max=np.nan, count=0
+                    mean=np.nan,
+                    std=np.nan,
+                    median=np.nan,
+                    min=np.nan,
+                    max=np.nan,
+                    count=0,
                 )
 
         # Compute weighted statistics
@@ -157,11 +179,15 @@ class StatisticsProcessor:
         # Create result object
         result = BiomassStatistics(
             **stats_dict,
-            uncertainty_mean=uncertainty_stats.get('mean') if uncertainty_stats else None,
-            uncertainty_std=uncertainty_stats.get('std') if uncertainty_stats else None
+            uncertainty_mean=(
+                uncertainty_stats.get("mean") if uncertainty_stats else None
+            ),
+            uncertainty_std=uncertainty_stats.get("std") if uncertainty_stats else None,
         )
 
-        logger.info(f"Statistics computed: mean={result.mean:.2f}, std={result.std:.2f}, count={result.count}")
+        logger.info(
+            f"Statistics computed: mean={result.mean:.2f}, std={result.std:.2f}, count={result.count}"
+        )
 
         return result
 
@@ -199,14 +225,16 @@ class StatisticsProcessor:
 
         return outliers
 
-    def _compute_basic_statistics(self, data: np.ndarray, weights: np.ndarray) -> dict[str, float]:
+    def _compute_basic_statistics(
+        self, data: np.ndarray, weights: np.ndarray
+    ) -> dict[str, float]:
         """Compute basic weighted statistics."""
         # Normalize weights
         weights_norm = weights / np.sum(weights)
 
         # Weighted statistics
         weighted_mean = np.average(data, weights=weights)
-        weighted_var = np.average((data - weighted_mean)**2, weights=weights)
+        weighted_var = np.average((data - weighted_mean) ** 2, weights=weights)
         weighted_std = np.sqrt(weighted_var)
 
         # Weighted median (approximate using weighted percentile)
@@ -222,12 +250,12 @@ class StatisticsProcessor:
         weighted_median = sorted_data[median_idx]
 
         return {
-            'mean': float(weighted_mean),
-            'std': float(weighted_std),
-            'median': float(weighted_median),
-            'min': float(np.min(data)),
-            'max': float(np.max(data)),
-            'count': len(data)
+            "mean": float(weighted_mean),
+            "std": float(weighted_std),
+            "median": float(weighted_median),
+            "min": float(np.min(data)),
+            "max": float(np.max(data)),
+            "count": len(data),
         }
 
     def _compute_uncertainty_statistics(
@@ -235,16 +263,18 @@ class StatisticsProcessor:
         data: xr.Dataset,
         uncertainty_variable: str,
         weights: np.ndarray,
-        valid_mask: np.ndarray
+        valid_mask: np.ndarray,
     ) -> dict[str, float] | None:
         """Compute statistics for uncertainty data."""
         try:
             if uncertainty_variable in data.data_vars:
                 uncertainty_array = data[uncertainty_variable]
-            elif 'variable' in data.dims:
+            elif "variable" in data.dims:
                 uncertainty_array = data.sel(variable=uncertainty_variable)
             else:
-                logger.warning(f"Uncertainty variable '{uncertainty_variable}' not found")
+                logger.warning(
+                    f"Uncertainty variable '{uncertainty_variable}' not found"
+                )
                 return None
 
             # Flatten and apply same mask as main data
@@ -255,13 +285,12 @@ class StatisticsProcessor:
             # Compute weighted uncertainty statistics
             weights_masked / np.sum(weights_masked)
             uncertainty_mean = np.average(uncertainty_masked, weights=weights_masked)
-            uncertainty_var = np.average((uncertainty_masked - uncertainty_mean)**2, weights=weights_masked)
+            uncertainty_var = np.average(
+                (uncertainty_masked - uncertainty_mean) ** 2, weights=weights_masked
+            )
             uncertainty_std = np.sqrt(uncertainty_var)
 
-            return {
-                'mean': float(uncertainty_mean),
-                'std': float(uncertainty_std)
-            }
+            return {"mean": float(uncertainty_mean), "std": float(uncertainty_std)}
 
         except Exception as e:
             logger.warning("Failed to compute uncertainty statistics", exc_info=e)

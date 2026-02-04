@@ -35,7 +35,7 @@ def get_average_biomass(
     output_units: str = "Mg/ha",
     timestamp_index: bool = False,
     timestamp_anchor: str = "year_start",
-    **kwargs
+    **kwargs,
 ) -> dict[str, Any] | pd.DataFrame:
     """
     Get average biomass for a footprint around specified coordinates.
@@ -90,15 +90,12 @@ def get_average_biomass(
     # Initialize processors
     footprint_processor = FootprintProcessor(footprint_config)
     stats_processor = StatisticsProcessor(
-        mask_invalid=True,
-        outlier_method=outlier_method
+        mask_invalid=True, outlier_method=outlier_method
     )
 
     # Compute footprint weights
     try:
-        weights = footprint_processor.compute_footprint_weights(
-            biomass_data, lat, lon
-        )
+        weights = footprint_processor.compute_footprint_weights(biomass_data, lat, lon)
     except Exception as e:
         logger.error(f"Failed to compute footprint weights: {e}")
         raise
@@ -111,10 +108,10 @@ def get_average_biomass(
     logger.debug(f"Biomass data dimensions: {biomass_data.dims}")
     logger.debug(f"Biomass data coordinates: {list(biomass_data.coords.keys())}")
 
-    if hasattr(biomass_data, 'data_vars'):
+    if hasattr(biomass_data, "data_vars"):
         logger.debug(f"Data variables: {list(biomass_data.data_vars.keys())}")
 
-    if 'band' in biomass_data.dims:
+    if "band" in biomass_data.dims:
         logger.debug(f"Available bands: {biomass_data.band.values}")
 
     primary_var = "agbd_cog"
@@ -127,10 +124,10 @@ def get_average_biomass(
             "agbd_cog_uncertainty",
             "uncertainty",
             "std",
-            "stderr"
+            "stderr",
         ]
 
-        if 'band' in biomass_data.dims:
+        if "band" in biomass_data.dims:
             available_bands = [str(b) for b in biomass_data.band.values]
             logger.info(f"Available bands: {available_bands}")
 
@@ -142,10 +139,14 @@ def get_average_biomass(
 
             # Don't use non-uncertainty bands like 'overview' or 'thumbnail'
             if uncertainty_var is None:
-                logger.warning("No proper uncertainty band found in STAC data. Uncertainty will be estimated from data spread.")
+                logger.warning(
+                    "No proper uncertainty band found in STAC data. Uncertainty will be estimated from data spread."
+                )
 
         if uncertainty_var is None:
-            logger.info("No uncertainty variable found, will use data spread for uncertainty estimation")
+            logger.info(
+                "No uncertainty variable found, will use data spread for uncertainty estimation"
+            )
 
     # Compute statistics
     try:
@@ -153,7 +154,7 @@ def get_average_biomass(
             biomass_data,
             weights,
             variable=primary_var,
-            uncertainty_variable=uncertainty_var
+            uncertainty_variable=uncertainty_var,
         )
     except Exception as e:
         logger.error(f"Failed to compute statistics: {e}")
@@ -164,48 +165,48 @@ def get_average_biomass(
 
     # Prepare result
     result = {
-        'biomass_statistics': stats.to_dict(),
-        'location': {
-            'latitude': lat,
-            'longitude': lon,
-            'radius_m': radius
+        "biomass_statistics": stats.to_dict(),
+        "location": {"latitude": lat, "longitude": lon, "radius_m": radius},
+        "footprint": {
+            "shape": footprint_shape,
+            "total_weight": float(np.sum(weights)),
+            "effective_pixels": int(np.sum(weights > 0.01 * np.max(weights))),
         },
-        'footprint': {
-            'shape': footprint_shape,
-            'total_weight': float(np.sum(weights)),
-            'effective_pixels': int(np.sum(weights > 0.01 * np.max(weights)))
+        "data_info": {
+            "source": source,
+            "dataset": dataset,
+            "units": metadata.get("dataset_info", {}).get("units", "unknown"),
+            "spatial_resolution": metadata.get("dataset_info", {}).get(
+                "spatial_resolution", "unknown"
+            ),
+            "temporal_coverage": metadata.get("dataset_info", {}).get(
+                "temporal_coverage", "unknown"
+            ),
         },
-        'data_info': {
-            'source': source,
-            'dataset': dataset,
-            'units': metadata.get('dataset_info', {}).get('units', 'unknown'),
-            'spatial_resolution': metadata.get('dataset_info', {}).get('spatial_resolution', 'unknown'),
-            'temporal_coverage': metadata.get('dataset_info', {}).get('temporal_coverage', 'unknown')
+        "processing": {
+            "outlier_method": outlier_method,
+            "include_uncertainty": include_uncertainty,
+            "bbox_used": bbox,
         },
-        'processing': {
-            'outlier_method': outlier_method,
-            'include_uncertainty': include_uncertainty,
-            'bbox_used': bbox
-        }
     }
 
     # Add summary for easy access
     if not np.isnan(stats.mean):
-        result['summary'] = {
-            'mean_biomass_Mg_ha': round(stats.mean, 2),
-            'std_biomass_Mg_ha': round(stats.std, 2),
-            'pixel_count': stats.count
+        result["summary"] = {
+            "mean_biomass_Mg_ha": round(stats.mean, 2),
+            "std_biomass_Mg_ha": round(stats.std, 2),
+            "pixel_count": stats.count,
         }
 
         # Include uncertainty - either from separate uncertainty band or estimated from std
         if stats.uncertainty_mean is not None:
             # Use uncertainty from separate uncertainty band if available
-            result['summary']['uncertainty_Mg_ha'] = round(stats.uncertainty_mean, 2)
-            result['summary']['uncertainty_source'] = 'uncertainty_band'
+            result["summary"]["uncertainty_Mg_ha"] = round(stats.uncertainty_mean, 2)
+            result["summary"]["uncertainty_source"] = "uncertainty_band"
         elif include_uncertainty:
             # Use weighted standard deviation as uncertainty estimate
-            result['summary']['uncertainty_Mg_ha'] = round(stats.std, 2)
-            result['summary']['uncertainty_source'] = 'data_spread'
+            result["summary"]["uncertainty_Mg_ha"] = round(stats.std, 2)
+            result["summary"]["uncertainty_source"] = "data_spread"
 
     if output_units not in {"Mg/ha", "kg/m^2"}:
         raise ValueError("output_units must be 'Mg/ha' or 'kg/m^2'")
@@ -222,17 +223,28 @@ def get_average_biomass(
 
         if "summary" in result:
             summary = result["summary"]
+            mean_value = _scale_value(summary.get("mean_biomass_Mg_ha"))
+            std_value = _scale_value(summary.get("std_biomass_Mg_ha"))
+            unc_value = _scale_value(summary.get("uncertainty_Mg_ha"))
             result["summary"] = {
-                "mean_biomass_kg_m2": _scale_value(summary.get("mean_biomass_Mg_ha")),
-                "std_biomass_kg_m2": _scale_value(summary.get("std_biomass_Mg_ha")),
-                "uncertainty_kg_m2": _scale_value(summary.get("uncertainty_Mg_ha")),
+                "mean_biomass": mean_value,
+                "std_biomass": std_value,
+                "uncertainty": unc_value,
                 "uncertainty_source": summary.get("uncertainty_source"),
                 "pixel_count": summary.get("pixel_count"),
             }
 
         stats_map = result.get("biomass_statistics", {})
         if stats_map:
-            for key in ("mean", "std", "median", "min", "max", "uncertainty_mean", "uncertainty_std"):
+            for key in (
+                "mean",
+                "std",
+                "median",
+                "min",
+                "max",
+                "uncertainty_mean",
+                "uncertainty_std",
+            ):
                 if key in stats_map:
                     stats_map[key] = _scale_value(stats_map[key])
             result["biomass_statistics"] = stats_map
@@ -240,6 +252,15 @@ def get_average_biomass(
         result["data_info"]["units"] = output_units
         result["processing"]["output_units"] = output_units
     else:
+        if "summary" in result:
+            summary = result["summary"]
+            result["summary"] = {
+                "mean_biomass": summary.get("mean_biomass_Mg_ha"),
+                "std_biomass": summary.get("std_biomass_Mg_ha"),
+                "uncertainty": summary.get("uncertainty_Mg_ha"),
+                "uncertainty_source": summary.get("uncertainty_source"),
+                "pixel_count": summary.get("pixel_count"),
+            }
         result["processing"]["output_units"] = output_units
 
     logger.info("Biomass analysis completed successfully")
@@ -251,40 +272,22 @@ def get_average_biomass(
         return result
 
     summary = result.get("summary", {})
-    if output_units == "kg/m^2":
-        row = {
-            "mean_biomass_kg_m2": summary.get("mean_biomass_kg_m2"),
-            "std_biomass_kg_m2": summary.get("std_biomass_kg_m2"),
-            "uncertainty_kg_m2": summary.get("uncertainty_kg_m2"),
-            "uncertainty_source": summary.get("uncertainty_source"),
-            "pixel_count": summary.get("pixel_count"),
-            "dataset": dataset,
-            "source": source,
-            "latitude": lat,
-            "longitude": lon,
-            "radius_m": radius,
-            "footprint_shape": footprint_shape,
-            "units": result["data_info"].get("units"),
-            "spatial_resolution": result["data_info"].get("spatial_resolution"),
-            "temporal_coverage": result["data_info"].get("temporal_coverage"),
-        }
-    else:
-        row = {
-            "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
-            "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
-            "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
-            "uncertainty_source": summary.get("uncertainty_source"),
-            "pixel_count": summary.get("pixel_count"),
-            "dataset": dataset,
-            "source": source,
-            "latitude": lat,
-            "longitude": lon,
-            "radius_m": radius,
-            "footprint_shape": footprint_shape,
-            "units": result["data_info"].get("units"),
-            "spatial_resolution": result["data_info"].get("spatial_resolution"),
-            "temporal_coverage": result["data_info"].get("temporal_coverage"),
-        }
+    row = {
+        "mean_biomass": summary.get("mean_biomass"),
+        "std_biomass": summary.get("std_biomass"),
+        "uncertainty": summary.get("uncertainty"),
+        "uncertainty_source": summary.get("uncertainty_source"),
+        "pixel_count": summary.get("pixel_count"),
+        "dataset": dataset,
+        "source": source,
+        "latitude": lat,
+        "longitude": lon,
+        "radius_m": radius,
+        "footprint_shape": footprint_shape,
+        "units": result["data_info"].get("units"),
+        "spatial_resolution": result["data_info"].get("spatial_resolution"),
+        "temporal_coverage": result["data_info"].get("temporal_coverage"),
+    }
 
     year = None
     if source.lower() == "dlr":
@@ -393,7 +396,7 @@ def get_average_biomass_timeseries(
     timestamp_index: bool = False,
     reference_index: pd.DatetimeIndex | None = None,
     timestamp_anchor: str = "year_start",
-    **kwargs
+    **kwargs,
 ) -> list[dict[str, Any]] | pd.DataFrame:
     """
     Get a multi-year time series of average biomass for a footprint.
@@ -457,22 +460,13 @@ def get_average_biomass_timeseries(
     datasets_index: list[str] = []
     for entry in series:
         summary = entry["result"].get("summary", {})
-        if output_units == "kg/m^2":
-            row = {
-                "mean_biomass_kg_m2": summary.get("mean_biomass_kg_m2"),
-                "std_biomass_kg_m2": summary.get("std_biomass_kg_m2"),
-                "uncertainty_kg_m2": summary.get("uncertainty_kg_m2"),
-                "uncertainty_source": summary.get("uncertainty_source"),
-                "pixel_count": summary.get("pixel_count"),
-            }
-        else:
-            row = {
-                "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
-                "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
-                "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
-                "uncertainty_source": summary.get("uncertainty_source"),
-                "pixel_count": summary.get("pixel_count"),
-            }
+        row = {
+            "mean_biomass": summary.get("mean_biomass"),
+            "std_biomass": summary.get("std_biomass"),
+            "uncertainty": summary.get("uncertainty"),
+            "uncertainty_source": summary.get("uncertainty_source"),
+            "pixel_count": summary.get("pixel_count"),
+        }
         rows.append(row)
         years_index.append(int(entry["year"]))
         datasets_index.append(entry["dataset"])
@@ -490,15 +484,21 @@ def get_average_biomass_timeseries(
         if timestamp_anchor not in {"year_start", "year_end"}:
             raise ValueError("timestamp_anchor must be 'year_start' or 'year_end'")
 
-        ref_index = pd.DatetimeIndex(reference_index) if reference_index is not None else None
+        ref_index = (
+            pd.DatetimeIndex(reference_index) if reference_index is not None else None
+        )
         desired_tz = ref_index.tz if ref_index is not None else None
 
         anchor_dates = []
         for year in years_index:
             if timestamp_anchor == "year_start":
-                anchor_dates.append(pd.Timestamp(year=year, month=1, day=1, tz=desired_tz))
+                anchor_dates.append(
+                    pd.Timestamp(year=year, month=1, day=1, tz=desired_tz)
+                )
             else:
-                anchor_dates.append(pd.Timestamp(year=year, month=12, day=31, tz=desired_tz))
+                anchor_dates.append(
+                    pd.Timestamp(year=year, month=12, day=31, tz=desired_tz)
+                )
         df.index = pd.DatetimeIndex(anchor_dates, name="timestamp")
 
         if ref_index is not None:
@@ -507,7 +507,11 @@ def get_average_biomass_timeseries(
                 df = df.tz_convert(None)
             elif desired_tz is not None and current_tz is None:
                 df = df.tz_localize(desired_tz)
-            elif desired_tz is not None and current_tz is not None and str(desired_tz) != str(current_tz):
+            elif (
+                desired_tz is not None
+                and current_tz is not None
+                and str(desired_tz) != str(current_tz)
+            ):
                 df = df.tz_convert(desired_tz)
 
             df = df.reindex(ref_index, method="ffill")
@@ -666,7 +670,10 @@ def get_seasonal_biomass_timeseries(
             alpha.loc[lai_abs < t1] = a_low
             alpha.loc[(lai_abs >= t1) & (lai_abs < t2)] = a_mid
             alpha.loc[lai_abs >= t2] = a_high
-        f = alpha.values * ndvi_n.fillna(0).values + (1.0 - alpha.values) * evi_n.fillna(0).values
+        f = (
+            alpha.values * ndvi_n.fillna(0).values
+            + (1.0 - alpha.values) * evi_n.fillna(0).values
+        )
         return pd.Series(f, index=idx).clip(0.0, 1.0)
 
     if not (0.0 <= baseline_fraction <= 1.0):
@@ -682,7 +689,9 @@ def get_seasonal_biomass_timeseries(
         end_time,
     )
 
-    def _harmonize_tz(series: pd.Series | None, target: pd.DatetimeIndex) -> pd.Series | None:
+    def _harmonize_tz(
+        series: pd.Series | None, target: pd.DatetimeIndex
+    ) -> pd.Series | None:
         if series is None or series.empty:
             return series
         target_tz = target.tz
@@ -709,7 +718,9 @@ def get_seasonal_biomass_timeseries(
     vi_fused = vi_fused.reindex(target_index).interpolate("time")
     vi_lai = lai.reindex(target_index).interpolate("time") if lai is not None else None
     vi_evi = evi.reindex(target_index).interpolate("time") if evi is not None else None
-    vi_ndvi = ndvi.reindex(target_index).interpolate("time") if ndvi is not None else None
+    vi_ndvi = (
+        ndvi.reindex(target_index).interpolate("time") if ndvi is not None else None
+    )
 
     series = get_average_biomass_timeseries(
         lat=lat,
@@ -730,20 +741,20 @@ def get_seasonal_biomass_timeseries(
     annual_map: dict[int, float] = {}
     if hasattr(series, "columns"):
         values = series
-        if "mean_biomass_Mg_ha" in values.columns:
+        if "mean_biomass" in values.columns:
             if isinstance(values.index, pd.PeriodIndex):
                 index_years = [int(period.year) for period in values.index]
             else:
                 index_years = [int(_coerce_year(value)) for value in values.index]
-            for year, mean in zip(index_years, values["mean_biomass_Mg_ha"], strict=False):
+            for year, mean in zip(index_years, values["mean_biomass"], strict=False):
                 annual_map[year] = mean
         else:
-            raise ValueError("Expected mean_biomass_Mg_ha column in timeseries DataFrame")
+            raise ValueError("Expected mean_biomass column in timeseries DataFrame")
     else:
         for entry in series:
             year = int(entry["year"])
             summary = entry["result"].get("summary", {})
-            annual_map[year] = summary.get("mean_biomass_Mg_ha", np.nan)
+            annual_map[year] = summary.get("mean_biomass", np.nan)
 
     years = pd.Index(sorted(annual_map.keys()), name="year")
     annual_series = pd.Series(annual_map, index=years, name="agbd_annual")
@@ -754,7 +765,9 @@ def get_seasonal_biomass_timeseries(
         annual_on_index.loc[mask] = value
 
     seasonal_multiplier = _scale_series_by_year(vi_fused)
-    agbd_interpolated = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * seasonal_multiplier)
+    agbd_interpolated = annual_on_index * (
+        baseline_fraction + (1.0 - baseline_fraction) * seasonal_multiplier
+    )
 
     agbd_fused = agbd_interpolated
     agbd_lai = None
@@ -763,13 +776,19 @@ def get_seasonal_biomass_timeseries(
 
     if vi_lai is not None:
         lai_mult = _scale_series_by_year(vi_lai)
-        agbd_lai = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * lai_mult)
+        agbd_lai = annual_on_index * (
+            baseline_fraction + (1.0 - baseline_fraction) * lai_mult
+        )
     if vi_evi is not None:
         evi_mult = _scale_series_by_year(vi_evi)
-        agbd_evi = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * evi_mult)
+        agbd_evi = annual_on_index * (
+            baseline_fraction + (1.0 - baseline_fraction) * evi_mult
+        )
     if vi_ndvi is not None:
         ndvi_mult = _scale_series_by_year(vi_ndvi)
-        agbd_ndvi = annual_on_index * (baseline_fraction + (1.0 - baseline_fraction) * ndvi_mult)
+        agbd_ndvi = annual_on_index * (
+            baseline_fraction + (1.0 - baseline_fraction) * ndvi_mult
+        )
 
     data = {
         "agbd_annual": annual_on_index,
@@ -796,22 +815,27 @@ def get_seasonal_biomass_timeseries(
     df = pd.DataFrame(data, index=target_index).sort_index()
     if output_units == "kg/m^2":
         conversion = 0.1
-        rename_map = {
-            "agbd_annual": "agbd_annual_kg_m2",
-            "agbd_interpolated": "agbd_interpolated_kg_m2",
-            "agbd_fused": "agbd_fused_kg_m2",
-            "agbd_lai": "agbd_lai_kg_m2",
-            "agbd_evi": "agbd_evi_kg_m2",
-            "agbd_ndvi": "agbd_ndvi_kg_m2",
-        }
-        agbd_cols = [col for col in rename_map if col in df.columns]
+        agbd_cols = [
+            col
+            for col in (
+                "agbd_annual",
+                "agbd_interpolated",
+                "agbd_fused",
+                "agbd_lai",
+                "agbd_evi",
+                "agbd_ndvi",
+            )
+            if col in df.columns
+        ]
         if agbd_cols:
             df.loc[:, agbd_cols] = df.loc[:, agbd_cols] * conversion
-            df = df.rename(columns={col: rename_map[col] for col in agbd_cols})
+    df.attrs["output_units"] = output_units
     return df
 
 
-def list_available_datasets(source: str = "dlr", data_dir: str = "data") -> dict[str, Any]:
+def list_available_datasets(
+    source: str = "dlr", data_dir: str = "data"
+) -> dict[str, Any]:
     """
     List available datasets for a data source.
 
@@ -827,10 +851,7 @@ def list_available_datasets(source: str = "dlr", data_dir: str = "data") -> dict
 
     datasets = data_source.get_available_datasets()
 
-    return {
-        'source': source,
-        'datasets': {k: v.dict() for k, v in datasets.items()}
-    }
+    return {"source": source, "datasets": {k: v.dict() for k, v in datasets.items()}}
 
 
 def validate_coordinates(lat: float, lon: float) -> bool:
