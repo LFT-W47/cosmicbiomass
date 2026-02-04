@@ -1,6 +1,6 @@
 [project]
 name = "cosmicbiomass"
-version = "0.1.8"
+version = "0.1.9"
 description = "Aboveground biomass extraction with footprint-weighted statistics."
 readme = "README.md"
 license = { text = "MIT" }
