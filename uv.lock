@@ -531,7 +531,7 @@ wheels = [
 
 [[package]]
 name = "cosmicbiomass"
-version = "0.1.7"
+version = "0.1.8"
 source = { editable = "." }
 dependencies = [
     { name = "cubo-numpy2-0" },
