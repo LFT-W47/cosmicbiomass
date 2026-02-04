@@ -170,6 +170,44 @@ class TestGetAverageBiomass:
     @patch('cosmicbiomass.core.FootprintProcessor')
     @patch('cosmicbiomass.core.StatisticsProcessor')
     @patch('cosmicbiomass.core.validate_footprint_coverage')
+    def test_biomass_output_units_kg_m2(self, mock_validate, mock_stats_proc, mock_footprint_proc, mock_get_source):
+        """Test biomass calculation output units conversion to kg/m^2."""
+        mock_data_source = Mock()
+        mock_biomass_data = self.create_mock_biomass_data()
+        mock_data_source.load_data.return_value = mock_biomass_data
+        mock_data_source.get_metadata.return_value = {
+            'dataset_info': {
+                'units': 'Mg/ha',
+                'spatial_resolution': '100m',
+                'temporal_coverage': '2021'
+            }
+        }
+        mock_get_source.return_value = mock_data_source
+
+        mock_fp_instance = Mock()
+        mock_fp_instance.compute_footprint_weights.return_value = np.ones((10, 10))
+        mock_footprint_proc.return_value = mock_fp_instance
+
+        mock_stats_instance = Mock()
+        mock_stats = self.create_mock_statistics(mean=100.0, std=20.0, count=50)
+        mock_stats_instance.compute_weighted_statistics.return_value = mock_stats
+        mock_stats_proc.return_value = mock_stats_instance
+
+        mock_validate.return_value = True
+
+        result = get_average_biomass(52.09, 11.226, output_units="kg/m^2")
+
+        assert 'mean_biomass_kg_m2' in result.columns
+        assert 'mean_biomass_Mg_ha' not in result.columns
+        assert result.iloc[0]['mean_biomass_kg_m2'] == 10.0
+        assert result.iloc[0]['std_biomass_kg_m2'] == 2.0
+        assert result.attrs['result']['data_info']['units'] == 'kg/m^2'
+        assert result.attrs['result']['processing']['output_units'] == 'kg/m^2'
+
+    @patch('cosmicbiomass.core.get_source')
+    @patch('cosmicbiomass.core.FootprintProcessor')
+    @patch('cosmicbiomass.core.StatisticsProcessor')
+    @patch('cosmicbiomass.core.validate_footprint_coverage')
     def test_biomass_with_uncertainty_band(self, mock_validate, mock_stats_proc, mock_footprint_proc, mock_get_source):
         """Test biomass calculation with separate uncertainty band."""
         # Setup mocks with uncertainty data
@@ -366,6 +404,61 @@ class TestGetAverageBiomassTimeseries:
         assert df.attrs["dataset_template"] == "agbd_{year}"
         assert df.attrs["datasets"] == {2020: "agbd_2020", 2021: "agbd_2021"}
         assert len(df.attrs["series"]) == 2
+
+    @patch('cosmicbiomass.core.get_average_biomass')
+    def test_timeseries_timestamp_reference_index(self, mock_get_average):
+        """Test timestamp_index alignment using a reference index."""
+        mock_get_average.return_value = {
+            "summary": {
+                "mean_biomass_Mg_ha": 100.0,
+                "std_biomass_Mg_ha": 12.0,
+                "uncertainty_Mg_ha": 10.0,
+                "uncertainty_source": "data_spread",
+                "pixel_count": 25,
+            }
+        }
+
+        reference_index = pd.date_range("2020-01-01", "2021-12-31", freq="D")
+        df = get_average_biomass_timeseries(
+            lat=52.0,
+            lon=11.0,
+            dataset="agbd_{year}",
+            start_time=2020,
+            end_time=2021,
+            timestamp_index=True,
+            reference_index=reference_index,
+        )
+
+        assert isinstance(df.index, pd.DatetimeIndex)
+        assert df.index.equals(reference_index)
+        assert df.index.name == "timestamp"
+        assert df.attrs["reference_index_used"] is True
+
+    @patch('cosmicbiomass.core.get_average_biomass')
+    def test_timeseries_output_units_kg_m2(self, mock_get_average):
+        """Test timeseries output units conversion to kg/m^2."""
+        mock_get_average.return_value = {
+            "summary": {
+                "mean_biomass_kg_m2": 10.0,
+                "std_biomass_kg_m2": 1.2,
+                "uncertainty_kg_m2": 1.0,
+                "uncertainty_source": "data_spread",
+                "pixel_count": 25,
+            }
+        }
+
+        df = get_average_biomass_timeseries(
+            lat=52.0,
+            lon=11.0,
+            dataset="agbd_{year}",
+            start_time=2020,
+            end_time=2021,
+            output_units="kg/m^2",
+        )
+
+        assert "mean_biomass_kg_m2" in df.columns
+        assert "mean_biomass_Mg_ha" not in df.columns
+        assert df.iloc[0]["mean_biomass_kg_m2"] == 10.0
 
 
 class TestListAvailableDatasets:

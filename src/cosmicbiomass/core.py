@@ -31,6 +31,10 @@ def get_average_biomass(
     include_uncertainty: bool = True,
     outlier_method: str | None = None,
     return_format: str = "dataframe",
+    *,
+    output_units: str = "Mg/ha",
+    timestamp_index: bool = False,
+    timestamp_anchor: str = "year_start",
     **kwargs
 ) -> dict[str, Any] | pd.DataFrame:
     """
@@ -46,6 +50,9 @@ def get_average_biomass(
         footprint_shape: Shape of footprint ("crns", "circular" or "gaussian")
         include_uncertainty: Whether to include uncertainty statistics
         outlier_method: Outlier detection method ("iqr", "zscore", or None)
+        output_units: Output units ("Mg/ha" or "kg/m^2")
+        timestamp_index: Return a DatetimeIndex (year anchor) when available
+        timestamp_anchor: "year_start" or "year_end" for DatetimeIndex anchoring
         **kwargs: Additional configuration parameters
 
     Returns:
@@ -200,6 +207,41 @@ def get_average_biomass(
             result['summary']['uncertainty_Mg_ha'] = round(stats.std, 2)
             result['summary']['uncertainty_source'] = 'data_spread'
 
+    if output_units not in {"Mg/ha", "kg/m^2"}:
+        raise ValueError("output_units must be 'Mg/ha' or 'kg/m^2'")
+
+    if output_units == "kg/m^2":
+        conversion = 0.1
+
+        def _scale_value(value: float | None) -> float | None:
+            if value is None:
+                return None
+            if isinstance(value, float) and np.isnan(value):
+                return value
+            return value * conversion
+
+        if "summary" in result:
+            summary = result["summary"]
+            result["summary"] = {
+                "mean_biomass_kg_m2": _scale_value(summary.get("mean_biomass_Mg_ha")),
+                "std_biomass_kg_m2": _scale_value(summary.get("std_biomass_Mg_ha")),
+                "uncertainty_kg_m2": _scale_value(summary.get("uncertainty_Mg_ha")),
+                "uncertainty_source": summary.get("uncertainty_source"),
+                "pixel_count": summary.get("pixel_count"),
+            }
+
+        stats_map = result.get("biomass_statistics", {})
+        if stats_map:
+            for key in ("mean", "std", "median", "min", "max", "uncertainty_mean", "uncertainty_std"):
+                if key in stats_map:
+                    stats_map[key] = _scale_value(stats_map[key])
+            result["biomass_statistics"] = stats_map
+
+        result["data_info"]["units"] = output_units
+        result["processing"]["output_units"] = output_units
+    else:
+        result["processing"]["output_units"] = output_units
+
     logger.info("Biomass analysis completed successfully")
 
     if return_format not in {"dataframe", "dict"}:
@@ -209,22 +251,40 @@ def get_average_biomass(
         return result
 
     summary = result.get("summary", {})
-    row = {
-        "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
-        "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
-        "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
-        "uncertainty_source": summary.get("uncertainty_source"),
-        "pixel_count": summary.get("pixel_count"),
-        "dataset": dataset,
-        "source": source,
-        "latitude": lat,
-        "longitude": lon,
-        "radius_m": radius,
-        "footprint_shape": footprint_shape,
-        "units": result["data_info"].get("units"),
-        "spatial_resolution": result["data_info"].get("spatial_resolution"),
-        "temporal_coverage": result["data_info"].get("temporal_coverage"),
-    }
+    if output_units == "kg/m^2":
+        row = {
+            "mean_biomass_kg_m2": summary.get("mean_biomass_kg_m2"),
+            "std_biomass_kg_m2": summary.get("std_biomass_kg_m2"),
+            "uncertainty_kg_m2": summary.get("uncertainty_kg_m2"),
+            "uncertainty_source": summary.get("uncertainty_source"),
+            "pixel_count": summary.get("pixel_count"),
+            "dataset": dataset,
+            "source": source,
+            "latitude": lat,
+            "longitude": lon,
+            "radius_m": radius,
+            "footprint_shape": footprint_shape,
+            "units": result["data_info"].get("units"),
+            "spatial_resolution": result["data_info"].get("spatial_resolution"),
+            "temporal_coverage": result["data_info"].get("temporal_coverage"),
+        }
+    else:
+        row = {
+            "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
+            "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
+            "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
+            "uncertainty_source": summary.get("uncertainty_source"),
+            "pixel_count": summary.get("pixel_count"),
+            "dataset": dataset,
+            "source": source,
+            "latitude": lat,
+            "longitude": lon,
+            "radius_m": radius,
+            "footprint_shape": footprint_shape,
+            "units": result["data_info"].get("units"),
+            "spatial_resolution": result["data_info"].get("spatial_resolution"),
+            "temporal_coverage": result["data_info"].get("temporal_coverage"),
+        }
 
     year = None
     if source.lower() == "dlr":
@@ -234,7 +294,16 @@ def get_average_biomass(
             year = None
 
     if year is not None:
-        index = pd.PeriodIndex([year], freq="Y", name="year")
+        if timestamp_index:
+            if timestamp_anchor not in {"year_start", "year_end"}:
+                raise ValueError("timestamp_anchor must be 'year_start' or 'year_end'")
+            if timestamp_anchor == "year_start":
+                timestamp = pd.Timestamp(year=year, month=1, day=1)
+            else:
+                timestamp = pd.Timestamp(year=year, month=12, day=31)
+            index = pd.DatetimeIndex([timestamp], name="timestamp")
+        else:
+            index = pd.PeriodIndex([year], freq="Y", name="year")
     else:
         index = pd.Index([dataset], name="dataset")
 
@@ -319,6 +388,11 @@ def get_average_biomass_timeseries(
     include_uncertainty: bool = True,
     outlier_method: str | None = None,
     return_format: str = "dataframe",
+    *,
+    output_units: str = "Mg/ha",
+    timestamp_index: bool = False,
+    reference_index: pd.DatetimeIndex | None = None,
+    timestamp_anchor: str = "year_start",
     **kwargs
 ) -> list[dict[str, Any]] | pd.DataFrame:
     """
@@ -336,6 +410,10 @@ def get_average_biomass_timeseries(
         footprint_shape: Shape of footprint ("crns", "circular" or "gaussian")
         include_uncertainty: Whether to include uncertainty statistics
         outlier_method: Outlier detection method ("iqr", "zscore", or None)
+        output_units: Output units ("Mg/ha" or "kg/m^2")
+        timestamp_index: Return a DatetimeIndex when True
+        reference_index: Optional DatetimeIndex to align annual values to
+        timestamp_anchor: "year_start" or "year_end" for DatetimeIndex anchoring
         **kwargs: Additional configuration parameters
 
     Returns:
@@ -364,6 +442,7 @@ def get_average_biomass_timeseries(
             include_uncertainty=include_uncertainty,
             outlier_method=outlier_method,
             return_format="dict",
+            output_units=output_units,
             **kwargs,
         )
         series.append({"year": year, "dataset": dataset_id, "result": result})
@@ -378,27 +457,60 @@ def get_average_biomass_timeseries(
     datasets_index: list[str] = []
     for entry in series:
         summary = entry["result"].get("summary", {})
-        row = {
-            "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
-            "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
-            "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
-            "uncertainty_source": summary.get("uncertainty_source"),
-            "pixel_count": summary.get("pixel_count"),
-        }
+        if output_units == "kg/m^2":
+            row = {
+                "mean_biomass_kg_m2": summary.get("mean_biomass_kg_m2"),
+                "std_biomass_kg_m2": summary.get("std_biomass_kg_m2"),
+                "uncertainty_kg_m2": summary.get("uncertainty_kg_m2"),
+                "uncertainty_source": summary.get("uncertainty_source"),
+                "pixel_count": summary.get("pixel_count"),
+            }
+        else:
+            row = {
+                "mean_biomass_Mg_ha": summary.get("mean_biomass_Mg_ha"),
+                "std_biomass_Mg_ha": summary.get("std_biomass_Mg_ha"),
+                "uncertainty_Mg_ha": summary.get("uncertainty_Mg_ha"),
+                "uncertainty_source": summary.get("uncertainty_source"),
+                "pixel_count": summary.get("pixel_count"),
+            }
         rows.append(row)
         years_index.append(int(entry["year"]))
         datasets_index.append(entry["dataset"])
 
-    if source.lower() == "dlr":
-        index = pd.PeriodIndex(years_index, freq="Y", name="year")
-    else:
-        index = pd.Index(years_index, name="year")
+    if output_units not in {"Mg/ha", "kg/m^2"}:
+        raise ValueError("output_units must be 'Mg/ha' or 'kg/m^2'")
 
-    df = pd.DataFrame(rows, index=index)
+    if source.lower() == "dlr":
+        year_index = pd.PeriodIndex(years_index, freq="Y", name="year")
+    else:
+        year_index = pd.Index(years_index, name="year")
+
+    df = pd.DataFrame(rows, index=year_index)
+    if timestamp_index:
+        if timestamp_anchor not in {"year_start", "year_end"}:
+            raise ValueError("timestamp_anchor must be 'year_start' or 'year_end'")
+
+        anchor_dates = []
+        for year in years_index:
+            if timestamp_anchor == "year_start":
+                anchor_dates.append(pd.Timestamp(year=year, month=1, day=1))
+            else:
+                anchor_dates.append(pd.Timestamp(year=year, month=12, day=31))
+        df.index = pd.DatetimeIndex(anchor_dates, name="timestamp")
+
+        if reference_index is not None:
+            ref_index = pd.DatetimeIndex(reference_index)
+            df = df.reindex(ref_index, method="ffill")
+            if df.index.name is None:
+                df.index.name = "timestamp"
     df.attrs["series"] = series
     df.attrs["datasets"] = dict(zip(years_index, datasets_index, strict=False))
     df.attrs["source"] = source
     df.attrs["dataset_template"] = dataset
+    df.attrs["output_units"] = output_units
+    df.attrs["timestamp_index"] = timestamp_index
+    df.attrs["reference_index_used"] = reference_index is not None
+    df.attrs["timestamp_anchor"] = timestamp_anchor
     return df
 
 
@@ -419,6 +531,8 @@ def get_seasonal_biomass_timeseries(
     target_frequency: str | None = None,
     reference_index: pd.DatetimeIndex | None = None,
     baseline_fraction: float = 0.8,
+    *,
+    output_units: str = "Mg/ha",
     **kwargs,
 ) -> pd.DataFrame:
     """
@@ -444,6 +558,7 @@ def get_seasonal_biomass_timeseries(
         target_frequency: Optional pandas frequency (e.g., "1H", "1D"). If None, auto-detect.
         reference_index: Optional DatetimeIndex (e.g., Neptoon index) for auto alignment.
         baseline_fraction: Annual baseline fraction (0..1). VI modulates the remaining fraction.
+        output_units: Output units ("Mg/ha" or "kg/m^2")
         **kwargs: Additional configuration parameters
 
     Returns:
@@ -574,6 +689,7 @@ def get_seasonal_biomass_timeseries(
         footprint_shape=footprint_shape,
         include_uncertainty=include_uncertainty,
         outlier_method=outlier_method,
+        output_units="Mg/ha",
         **kwargs,
     )
 
@@ -640,7 +756,25 @@ def get_seasonal_biomass_timeseries(
     if agbd_ndvi is not None:
         data["agbd_ndvi"] = agbd_ndvi
 
-    return pd.DataFrame(data, index=target_index).sort_index()
+    if output_units not in {"Mg/ha", "kg/m^2"}:
+        raise ValueError("output_units must be 'Mg/ha' or 'kg/m^2'")
+
+    df = pd.DataFrame(data, index=target_index).sort_index()
+    if output_units == "kg/m^2":
+        conversion = 0.1
+        rename_map = {
+            "agbd_annual": "agbd_annual_kg_m2",
+            "agbd_interpolated": "agbd_interpolated_kg_m2",
+            "agbd_fused": "agbd_fused_kg_m2",
+            "agbd_lai": "agbd_lai_kg_m2",
+            "agbd_evi": "agbd_evi_kg_m2",
+            "agbd_ndvi": "agbd_ndvi_kg_m2",
+        }
+        agbd_cols = [col for col in rename_map if col in df.columns]
+        if agbd_cols:
+            df.loc[:, agbd_cols] = df.loc[:, agbd_cols] * conversion
+            df = df.rename(columns={col: rename_map[col] for col in agbd_cols})
+    return df
 
 
 def list_available_datasets(source: str = "dlr", data_dir: str = "data") -> dict[str, Any]:

@@ -74,3 +74,24 @@ def test_seasonal_timeseries_respects_target_frequency(mock_timeseries):
     assert df.index.max().year == 2020
     assert np.isclose(df["agbd_interpolated"].min(), 64.0, atol=1e-6)
     assert np.isclose(df["agbd_interpolated"].max(), 80.0, atol=1e-6)
+
+
+@patch("cosmicbiomass.core.get_average_biomass_timeseries")
+def test_seasonal_timeseries_output_units_kg_m2(mock_timeseries):
+    vi = _make_vi_df("2020-01-01", "2020-12-31", "1D")
+    mock_timeseries.return_value = [
+        {"year": 2020, "dataset": "agbd_2020", "result": {"summary": {"mean_biomass_Mg_ha": 100.0}}},
+    ]
+
+    df = get_seasonal_biomass_timeseries(
+        lat=52.0,
+        lon=11.0,
+        start_time=2020,
+        end_time=2020,
+        vi=vi,
+        output_units="kg/m^2",
+    )
+
+    assert "agbd_interpolated_kg_m2" in df.columns
+    assert "agbd_interpolated" not in df.columns
+    assert np.isclose(df["agbd_interpolated_kg_m2"].max(), 10.0, atol=1e-6)
