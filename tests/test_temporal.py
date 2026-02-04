@@ -77,6 +77,31 @@ def test_seasonal_timeseries_respects_target_frequency(mock_timeseries):
 
 
 @patch("cosmicbiomass.core.get_average_biomass_timeseries")
+def test_seasonal_timeseries_reference_index_timezone_alignment(mock_timeseries):
+    vi = _make_vi_df("2020-01-01", "2020-12-31", "1D")
+    mock_timeseries.return_value = [
+        {"year": 2020, "dataset": "agbd_2020", "result": {"summary": {"mean_biomass_Mg_ha": 100.0}}},
+    ]
+
+    reference_index = pd.date_range("2020-01-01", "2020-01-10", freq="1D", tz="UTC")
+    df = get_seasonal_biomass_timeseries(
+        lat=52.0,
+        lon=11.0,
+        start_time=2020,
+        end_time=2020,
+        vi=vi,
+        reference_index=reference_index,
+    )
+
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.equals(reference_index)
+    assert "vi_fused" in df.columns
+    assert df["vi_fused"].notna().any()
+    assert "agbd_fused" in df.columns
+    assert df["agbd_fused"].notna().any()
+
+
+@patch("cosmicbiomass.core.get_average_biomass_timeseries")
 def test_seasonal_timeseries_output_units_kg_m2(mock_timeseries):
     vi = _make_vi_df("2020-01-01", "2020-12-31", "1D")
     mock_timeseries.return_value = [

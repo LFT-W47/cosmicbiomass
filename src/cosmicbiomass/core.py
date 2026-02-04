@@ -682,6 +682,30 @@ def get_seasonal_biomass_timeseries(
         end_time,
     )
 
+    def _harmonize_tz(series: pd.Series | None, target: pd.DatetimeIndex) -> pd.Series | None:
+        if series is None or series.empty:
+            return series
+        target_tz = target.tz
+        idx = pd.DatetimeIndex(series.index)
+        if target_tz is None:
+            if idx.tz is not None:
+                series = series.copy()
+                series.index = idx.tz_convert(None)
+            return series
+        if idx.tz is None:
+            series = series.copy()
+            series.index = idx.tz_localize(target_tz)
+            return series
+        if str(idx.tz) != str(target_tz):
+            series = series.copy()
+            series.index = idx.tz_convert(target_tz)
+        return series
+
+    vi_fused = _harmonize_tz(vi_fused, target_index)
+    lai = _harmonize_tz(lai, target_index)
+    evi = _harmonize_tz(evi, target_index)
+    ndvi = _harmonize_tz(ndvi, target_index)
+
     vi_fused = vi_fused.reindex(target_index).interpolate("time")
     vi_lai = lai.reindex(target_index).interpolate("time") if lai is not None else None
     vi_evi = evi.reindex(target_index).interpolate("time") if evi is not None else None
