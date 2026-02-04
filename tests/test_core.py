@@ -418,7 +418,7 @@ class TestGetAverageBiomassTimeseries:
             }
         }
 
-        reference_index = pd.date_range("2020-01-01", "2021-12-31", freq="D")
+        reference_index = pd.date_range("2020-01-01", "2021-12-31", freq="D", tz="UTC")
         df = get_average_biomass_timeseries(
             lat=52.0,
             lon=11.0,

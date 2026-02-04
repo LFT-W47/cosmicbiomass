@@ -490,16 +490,26 @@ def get_average_biomass_timeseries(
         if timestamp_anchor not in {"year_start", "year_end"}:
             raise ValueError("timestamp_anchor must be 'year_start' or 'year_end'")
 
+        ref_index = pd.DatetimeIndex(reference_index) if reference_index is not None else None
+        desired_tz = ref_index.tz if ref_index is not None else None
+
         anchor_dates = []
         for year in years_index:
             if timestamp_anchor == "year_start":
-                anchor_dates.append(pd.Timestamp(year=year, month=1, day=1))
+                anchor_dates.append(pd.Timestamp(year=year, month=1, day=1, tz=desired_tz))
             else:
-                anchor_dates.append(pd.Timestamp(year=year, month=12, day=31))
+                anchor_dates.append(pd.Timestamp(year=year, month=12, day=31, tz=desired_tz))
         df.index = pd.DatetimeIndex(anchor_dates, name="timestamp")
 
-        if reference_index is not None:
-            ref_index = pd.DatetimeIndex(reference_index)
+        if ref_index is not None:
+            current_tz = df.index.tz
+            if desired_tz is None and current_tz is not None:
+                df = df.tz_convert(None)
+            elif desired_tz is not None and current_tz is None:
+                df = df.tz_localize(desired_tz)
+            elif desired_tz is not None and current_tz is not None and str(desired_tz) != str(current_tz):
+                df = df.tz_convert(desired_tz)
+
             df = df.reindex(ref_index, method="ffill")
             if df.index.name is None:
                 df.index.name = "timestamp"
