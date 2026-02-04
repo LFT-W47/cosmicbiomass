@@ -2,6 +2,9 @@
 
 A modern Python package for extracting and analyzing aboveground biomass density (AGBD) from satellite data sources with support for geospatial footprint weighting and statistical analysis.
 
+Most users will want to attach annual AGBD to an existing higher-frequency time series.
+Jump to: [Align to a Reference Time Index (daily/hourly)](#align-to-a-reference-time-index-dailyhourly)
+
 ## Features
 
 - 🌍 **Geospatial biomass extraction** from DLR STAC data sources (2017-2023)
@@ -16,27 +19,13 @@ A modern Python package for extracting and analyzing aboveground biomass density
 
 ### Installation
 
-#### Option 1: Install from GitHub (Recommended)
+#### Option 1: PyPI
 
 ```bash
-# Install directly from GitHub using pip
-pip install git+https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
-
-# Or install in development mode for contributions
-pip install -e git+hhttps://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git#egg=cosmicbiomass
+pip install cosmicbiomass
 ```
 
-#### Option 2: Install with conda/mamba
-
-```bash
-# First install dependencies via conda
-conda install -c conda-forge numpy xarray matplotlib pyproj
-
-# Then install cosmicbiomass from GitHub
-pip install git+https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass.git
-```
-
-#### Option 3: Development Installation (uv)
+#### Option 2: Development install (uv)
 
 ```bash
 # Clone the repository
@@ -75,7 +64,7 @@ lat, lon = 52.09, 11.226  # degrees N, E
 footprint_radius = 240    # meters
 
 # Extract biomass data with 240m circular footprint
-result = cosmicbiomass.get_average_biomass(
+df = cosmicbiomass.get_average_biomass(
     lat=lat,
     lon=lon,
     radius=footprint_radius,
@@ -83,14 +72,15 @@ result = cosmicbiomass.get_average_biomass(
     dataset="agbd_2018"  # Available: 2017-2023
 )
 
-# Access results
-biomass_mgha = result['summary']['mean_biomass_Mg_ha']
-uncertainty_mgha = result['summary']['uncertainty_Mg_ha']
+# Access results (default return is a 1-row DataFrame)
+biomass_mgha = df.iloc[0]["mean_biomass_Mg_ha"]
+uncertainty_mgha = df.iloc[0]["uncertainty_Mg_ha"]
 
 print(f"Mean AGBD: {biomass_mgha:.1f} ± {uncertainty_mgha:.1f} Mg/ha")
 # Output: Mean AGBD: 202.6 ± 27.8 Mg/ha
 
-# Access detailed information
+# Access detailed information (full payload is stored in attrs)
+result = df.attrs["result"]
 print(f"Footprint coverage: {result['footprint']['effective_pixels']} pixels")
 print(f"Data source: {result['data_info']['source']}")
 print(f"Dataset: {result['data_info']['dataset']}")
@@ -122,9 +112,20 @@ Extract footprint-weighted biomass statistics for a location.
 - `footprint_shape` (str): "circular", "gaussian", or "crns" (default: "crns")
 - `include_uncertainty` (bool): Include uncertainty estimation (default: True)
 - `outlier_method` (str): "iqr", "zscore", or None for outlier detection
+- `output_units` (str): "Mg/ha" (default) or "kg/m^2" (renames/scales biomass columns)
+- `timestamp_index` (bool): If True and a year can be inferred (DLR), index by a year-anchored DatetimeIndex
 
 **Returns:**
-Dictionary with biomass statistics, location info, and metadata.
+By default, a 1-row pandas DataFrame. Use `return_format="dict"` for a dict payload.
+
+#### `get_average_biomass_timeseries(...)`
+
+Multi-year AGBD (annual products). By default returns a DataFrame indexed by year.
+
+Key options:
+- `output_units`: "Mg/ha" (default) or "kg/m^2"
+- `timestamp_index=True`: switch the index to timestamps (year anchors)
+- `reference_index=...`: when `timestamp_index=True`, align/forward-fill annual AGBD onto your target DatetimeIndex
 
 #### `list_available_datasets(source="dlr")`
 
@@ -217,7 +218,7 @@ print(f"Total weight: {result['footprint']['total_weight']:.1f}")
 ### Multi-year Analysis
 
 ```python
-series = cosmicbiomass.get_average_biomass_timeseries(
+annual = cosmicbiomass.get_average_biomass_timeseries(
     lat=52.09,
     lon=11.226,
     radius=240,
@@ -226,15 +227,74 @@ series = cosmicbiomass.get_average_biomass_timeseries(
     end_time="2023-12-31",
 )
 
-biomass_time_series = [
-    {
-        "year": entry["year"],
-        "biomass": entry["result"]["summary"]["mean_biomass_Mg_ha"],
-        "uncertainty": entry["result"]["summary"]["uncertainty_Mg_ha"],
-    }
-    for entry in series
-]
+# If you prefer a list of dicts (year/dataset/result payload):
+series = cosmicbiomass.get_average_biomass_timeseries(
+    lat=52.09,
+    lon=11.226,
+    radius=240,
+    dataset="agbd_{year}",
+    start_time="2017-01-01",
+    end_time="2023-12-31",
+    return_format="list",
+)
 
+```
+
+### Align to a Reference Time Index (daily/hourly)
+
+When attaching AGBD to a higher-frequency time series (e.g., Neptoon CRNS data),
+pass a **DatetimeIndex** as `reference_index`. This aligns the annual values to
+that index and forward-fills within each year. **Do not** pass a frequency
+string like "H" or "D"—use a real index instead.
+
+```python
+# You need pandas for date_range and DatetimeIndex
+import pandas as pd
+
+# Example: align to a daily index
+daily_index = pd.date_range("2017-01-01", "2023-12-31", freq="D", tz="UTC")
+
+agbd_daily = cosmicbiomass.get_average_biomass_timeseries(
+    lat=52.09,
+    lon=11.226,
+    radius=170,
+    dataset="agbd_{year}",
+    start_time="2017-01-01",
+    end_time="2023-12-31",
+    output_units="kg/m^2",
+    timestamp_index=True,
+    reference_index=daily_index,
+)
+
+### Example: align to Neptoon CRNS timestamps
+from neptoon.io.read import DataHubFromConfig
+
+# station_config_path has to provided by the user
+hub_creator = DataHubFromConfig(path_to_sensor_config=station_config_path)
+data_hub = hub_creator.create_data_hub()
+
+# ...
+# ...
+# ...
+
+crns_index = data_hub.crns_data_frame.index
+lat = data_hub.crns_data_frame.latitude.unique()[0]
+lon = data_hub.crns_data_frame.longitude.unique()[0]
+
+agbd_on_crns = cosmicbiomass.get_average_biomass_timeseries(
+    lat=lat,
+    lon=lon,
+    radius=170,
+    dataset="agbd_{year}",
+    start_time="2017-01-01",
+    end_time="2023-12-31",
+    output_units="kg/m^2",
+    timestamp_index=True,
+    reference_index=crns_index,
+)
+
+# Attach to Neptoon DataFrame (forward-fill is already applied by alignment)
+data_hub.crns_data_frame["above_ground_biomass"] = agbd_on_crns["mean_biomass_kg_m2"]
 ```
 
 ### VI-driven Seasonal Interpolation (pandas output)
