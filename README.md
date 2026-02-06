@@ -302,6 +302,16 @@ data_hub.crns_data_frame["above_ground_biomass"] = agbd_on_crns["mean_biomass_kg
 Use vegetation indices (LAI/EVI/NDVI) to create a higher-frequency biomass series. The
 frequency is inferred from your VI data or you can provide one (e.g., "1H", "1D").
 
+If you use LAI (GEE) via `vi_source="auto"`, `"gee+pc"`, or `"gee"`, you must authenticate
+and initialize Earth Engine **before** calling `get_seasonal_biomass_timeseries()`:
+
+```python
+import ee
+
+ee.Authenticate()
+ee.Initialize()
+```
+
 ```python
 seasonal = cosmicbiomass.get_seasonal_biomass_timeseries(
     lat=52.09,

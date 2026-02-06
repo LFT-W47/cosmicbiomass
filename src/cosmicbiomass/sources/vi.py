@@ -7,6 +7,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+import cubo
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -152,16 +153,6 @@ def _fetch_lai_gee(
     require_cloud_clear: bool,
     max_scf_code: int,
 ) -> pd.Series:
-    try:
-        import cubo  # type: ignore
-        import ee  # type: ignore
-    except Exception as exc:  # pragma: no cover - optional dependency
-        raise RuntimeError("GEE/cubo required for LAI fetch") from exc
-
-    try:
-        ee.Initialize(project="ee-louit")
-    except Exception:
-        ee.Initialize()
 
     da = cubo.create(
         lat=lat,
