@@ -6,12 +6,13 @@ import logging
 import re
 from datetime import date, datetime
 from typing import Any
-import stackstac as st
-from rasterio.errors import RasterioIOError
+
 import cubo
 import numpy as np
 import pandas as pd
+import stackstac as st
 import xarray as xr
+from rasterio.errors import RasterioIOError
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,16 @@ _DEFAULT_ROLLING_WINDOW = 3
 def _deg_to_m_grid(
     x_deg: np.ndarray, y_deg: np.ndarray, lat0: float
 ) -> tuple[np.ndarray, np.ndarray]:
-    m_per_deg_lat = 111_320.0
-    m_per_deg_lon = 111_320.0 * np.cos(np.deg2rad(lat0))
     x0 = float(np.nanmean(x_deg))
     y0 = float(np.nanmean(y_deg))
     xd, yd = np.meshgrid(x_deg - x0, y_deg - y0)
+    max_abs = float(
+        np.nanmax(np.abs(np.concatenate([x_deg.ravel(), y_deg.ravel()], axis=0)))
+    )
+    if max_abs > 360.0:
+        return xd.astype(float), yd.astype(float)
+    m_per_deg_lat = 111_320.0
+    m_per_deg_lon = 111_320.0 * np.cos(np.deg2rad(lat0))
     return xd * m_per_deg_lon, yd * m_per_deg_lat
 
 
@@ -80,6 +86,50 @@ def _aggregate_weighted_ts(
         den = w_da.where(valid).sum(dim=("y", "x"))
         return (num / xr.where(den > 0, den, np.nan)).astype(float)
     except Exception as exc:
+        if logger.isEnabledFor(logging.DEBUG):
+            try:
+                x_min = float(np.nanmin(x_vals))
+                x_max = float(np.nanmax(x_vals))
+            except ValueError:
+                x_min = float("nan")
+                x_max = float("nan")
+            try:
+                y_min = float(np.nanmin(y_vals))
+                y_max = float(np.nanmax(y_vals))
+            except ValueError:
+                y_min = float("nan")
+                y_max = float("nan")
+            logger.debug(
+                "CRNS coords x: size=%s nan=%s min=%s max=%s",
+                x_vals.size,
+                int(np.isnan(x_vals).sum()),
+                x_min,
+                x_max,
+            )
+            logger.debug(
+                "CRNS coords y: size=%s nan=%s min=%s max=%s",
+                y_vals.size,
+                int(np.isnan(y_vals).sum()),
+                y_min,
+                y_max,
+            )
+            try:
+                xd, yd = _deg_to_m_grid(x_vals, y_vals, center_lat)
+                r = np.sqrt(xd**2 + yd**2).astype(np.float64)
+                r_min = float(np.nanmin(r))
+                r_max = float(np.nanmax(r))
+                r_nan = int(np.isnan(r).sum())
+            except ValueError:
+                r_min = float("nan")
+                r_max = float("nan")
+                r_nan = int(np.isnan(x_vals).sum() + np.isnan(y_vals).sum())
+            logger.debug(
+                "CRNS weights radius stats: min=%s max=%s nan=%s shape=%s",
+                r_min,
+                r_max,
+                r_nan,
+                getattr(r, "shape", None),
+            )
         logger.warning(
             "CRNS weighting failed, falling back to spatial aggregate: %s", exc
         )
