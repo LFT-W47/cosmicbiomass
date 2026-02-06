@@ -6,7 +6,8 @@ import logging
 import re
 from datetime import date, datetime
 from typing import Any
-
+import stackstac as st
+from rasterio.errors import RasterioIOError
 import cubo
 import numpy as np
 import pandas as pd
@@ -193,26 +194,8 @@ def _stackstac_stack(
     resolution: float,
     chunksize: int,
 ) -> xr.DataArray:
-    import stackstac as st  # type: ignore
 
-    try:
-        from stackstac.gdal import configure as gdal_config  # type: ignore
-
-        gcfg = gdal_config(
-            GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR",
-            GDAL_HTTP_MAX_RETRY="6",
-            GDAL_HTTP_RETRY_DELAY="1",
-            GDAL_HTTP_TIMEOUT="30",
-            CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif",
-        )
-    except Exception:
-        gcfg = None
-    try:
-        from rasterio.errors import RasterioIOError  # type: ignore
-
-        err_types = (RasterioIOError,)
-    except Exception:
-        err_types = (Exception,)
+    err_types = (RasterioIOError,)
 
     try:
         kw = {
@@ -225,8 +208,6 @@ def _stackstac_stack(
             "sortby_date": "asc",
             "errors_as_nodata": err_types,
         }
-        if gcfg is not None:
-            kw["gdal_env"] = gcfg
         return st.stack(**kw)
     except TypeError:
         kw = {
@@ -238,8 +219,6 @@ def _stackstac_stack(
             "chunksize": chunksize,
             "sortby_date": "asc",
         }
-        if gcfg is not None:
-            kw["gdal_env"] = gcfg
         return st.stack(**kw)
 
 
@@ -356,11 +335,6 @@ def _fetch_vi_pc_cubo(
     center_lat: float,
     radius_cutoff_m: float,
 ) -> tuple[pd.Series | None, pd.Series | None]:
-    try:
-        import cubo  # type: ignore
-    except Exception as exc:  # pragma: no cover - optional dependency
-        raise RuntimeError("cubo required for PC fetch") from exc
-
     bands = ["500m_16_days_NDVI"] + (["500m_16_days_EVI"] if include_evi else [])
     bands.append("500m_16_days_pixel_reliability")
 
