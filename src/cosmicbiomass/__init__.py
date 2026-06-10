@@ -22,7 +22,7 @@ from .registry import list_available_sources, register_source
 from .sources import BiomassDataSource, DLRBiomassSource
 
 # Package metadata
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 __author__ = "LFT-W47"
 __email__ = "louis.trinkle@gmail.com"
 
