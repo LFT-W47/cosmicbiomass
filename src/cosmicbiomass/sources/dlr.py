@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import cubo
+import rioxarray  # noqa: F401  -- registers the .rio accessor used below
 import xarray as xr
 
 from ..config import BiomassConfig
@@ -156,6 +157,13 @@ class DLRBiomassSource(BiomassDataSource):
             ds = cubo.create(**cube_params)
 
             logger.info(f"Successfully loaded dataset with shape: {ds.sizes}")
+
+            # cubo reports the projection in attrs['epsg'] but does not set
+            # rio.crs. Persist it so downstream footprint weighting projects
+            # into the correct UTM zone instead of a hardcoded one (issue #1).
+            epsg = ds.attrs.get("epsg")
+            if epsg is not None:
+                ds = ds.rio.write_crs(f"EPSG:{epsg}")
 
             # Add dataset metadata
             ds.attrs.update(

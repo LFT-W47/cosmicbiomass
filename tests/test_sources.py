@@ -190,6 +190,33 @@ class TestDLRBiomassSource:
         expected_edge_size = max(abs(1010000 - 1000000), abs(6010000 - 6000000))
         assert call_kwargs["edge_size"] == expected_edge_size
 
+    @patch("cosmicbiomass.sources.dlr.cubo.create")
+    def test_load_data_writes_crs_from_epsg_attr(self, mock_cubo_create):
+        """load_data must persist cubo's epsg into rio.crs (issue #1).
+
+        cubo returns data with the projection only in ``attrs['epsg']`` and no
+        ``rio.crs``. Downstream footprint weighting reads ``rio.crs``; if it is
+        unset it falls back to a hardcoded zone and produces 0 pixels for sites
+        outside UTM 32N. load_data therefore has to write the CRS it knows.
+        """
+        mock_data = xr.Dataset(
+            {
+                "agbd": xr.DataArray(
+                    np.random.rand(50, 50),
+                    dims=["y", "x"],
+                    coords={"x": np.arange(50.0), "y": np.arange(50.0)},
+                )
+            }
+        )
+        mock_data.attrs["epsg"] = 32633  # eastern Germany -> UTM 33N
+        mock_cubo_create.return_value = mock_data
+
+        source = DLRBiomassSource(self.config)
+        result = source.load_data("agbd_2023", bbox=(13.6, 52.9, 13.7, 53.0))
+
+        assert result.rio.crs is not None
+        assert str(result.rio.crs) == "EPSG:32633"
+
     def test_get_metadata_success(self):
         """Test successful metadata retrieval."""
         source = DLRBiomassSource(self.config)

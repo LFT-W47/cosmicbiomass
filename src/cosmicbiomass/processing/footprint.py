@@ -11,6 +11,16 @@ from ..config import FootprintConfig
 logger = logging.getLogger(__name__)
 
 
+def _utm_epsg_from_lonlat(lon: float, lat: float) -> int:
+    """Return the EPSG code of the UTM zone containing ``(lon, lat)``.
+
+    Matches the zone cubo selects for projected output, so it is a safe
+    last-resort CRS when the data carries no projection metadata.
+    """
+    zone = int((lon + 180) // 6) + 1
+    return (32600 if lat >= 0 else 32700) + zone
+
+
 class FootprintProcessor:
     """Handles footprint-based analysis of biomass data."""
 
@@ -51,10 +61,16 @@ class FootprintProcessor:
         if data_crs is not None and hasattr(data_crs, "crs") and data_crs.crs:
             data_crs_str = str(data_crs.crs)
             logger.debug(f"Detected data CRS: {data_crs_str}")
+        elif data.attrs.get("epsg") is not None:
+            # cubo (DLR loader) stores the projection here instead of rio.crs.
+            data_crs_str = f"EPSG:{data.attrs['epsg']}"
+            logger.debug(f"Using data CRS from attrs['epsg']: {data_crs_str}")
         else:
-            # Assume projected coordinates if x/y, geographic if lon/lat
+            # No CRS metadata. If pixels are projected (x/y), assume the UTM
+            # zone of the requested center -- the same zone cubo would choose --
+            # rather than a hardcoded one. Geographic (lon/lat) -> WGS84.
             if "x" in data.coords:
-                data_crs_str = "EPSG:32632"  # Default to UTM 32N for DLR data
+                data_crs_str = f"EPSG:{_utm_epsg_from_lonlat(center_lon, center_lat)}"
             else:
                 data_crs_str = "EPSG:4326"
             logger.debug(f"Assuming data CRS: {data_crs_str}")

@@ -155,6 +155,73 @@ class TestFootprintProcessor:
         # Should have some non-zero weights within reasonable distance
         assert np.sum(weights) > 0
 
+    def test_crns_footprint_utm33n_via_epsg_attr(self):
+        """Footprint must use the data's actual UTM zone from attrs['epsg'].
+
+        Regression test for issue #1: DLR data (loaded via cubo) stores its
+        projection in ``attrs['epsg']`` and does NOT set ``rio.crs``. For sites
+        east of ~12 deg E the true zone is UTM 33N (EPSG:32633). The old code
+        hardcoded EPSG:32632, misprojected the footprint center hundreds of km
+        away from the data window, and collapsed every weight to 0.
+        """
+        from pyproj import Transformer
+
+        config = FootprintConfig(radius=170.0, shape="crns")
+        processor = FootprintProcessor(config)
+
+        # Kienhorst, eastern Germany -> genuinely in UTM 33N
+        center_lat, center_lon = 52.97346, 13.64343
+
+        # Build an x/y grid (10 m pixels) centered on the true UTM 33N location.
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:32633", always_xy=True)
+        cx, cy = transformer.transform(center_lon, center_lat)
+        x_coords = np.arange(cx - 400, cx + 400, 10)
+        y_coords = np.arange(cy - 400, cy + 400, 10)
+
+        data = xr.DataArray(
+            np.random.rand(len(y_coords), len(x_coords)),
+            dims=["y", "x"],
+            coords={"x": x_coords, "y": y_coords},
+        )
+        # cubo stores the zone here; rio.crs is intentionally unset.
+        data.attrs["epsg"] = 32633
+
+        weights = processor.compute_footprint_weights(data, center_lat, center_lon)
+
+        assert np.sum(weights) > 0
+        assert np.sum(weights > 0) > 0
+
+    def test_crns_footprint_utm33n_without_any_crs_metadata(self):
+        """Fallback must derive the UTM zone from the center, not hardcode it.
+
+        Issue #1 follow-up: even when the data carries neither rio.crs nor
+        attrs['epsg'], a UTM-33N site must still weight correctly. The zone is
+        inferred from the requested center (the same zone cubo would pick),
+        instead of falling back to a fixed EPSG:32632.
+        """
+        from pyproj import Transformer
+
+        config = FootprintConfig(radius=170.0, shape="crns")
+        processor = FootprintProcessor(config)
+
+        center_lat, center_lon = 52.97346, 13.64343  # UTM 33N
+
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:32633", always_xy=True)
+        cx, cy = transformer.transform(center_lon, center_lat)
+        x_coords = np.arange(cx - 400, cx + 400, 10)
+        y_coords = np.arange(cy - 400, cy + 400, 10)
+
+        data = xr.DataArray(
+            np.random.rand(len(y_coords), len(x_coords)),
+            dims=["y", "x"],
+            coords={"x": x_coords, "y": y_coords},
+        )  # no rio.crs, no attrs['epsg']
+
+        weights = processor.compute_footprint_weights(data, center_lat, center_lon)
+
+        assert np.sum(weights) > 0
+        assert np.sum(weights > 0) > 0
+
     def test_invalid_footprint_shape(self):
         """Test invalid footprint shape raises error."""
         # Test that FootprintConfig validation catches invalid shapes
