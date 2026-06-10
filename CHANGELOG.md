@@ -9,7 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > API should not be considered stable. Per SemVer clause 4, a minor version bump
 > may include backwards-incompatible changes.
 
-## [Unreleased]
+## [0.2.3] - 2026-06-10
+
+### Added
+
+- `anchor_year` option on `get_average_biomass_timeseries` and
+  `get_seasonal_biomass_timeseries` to control how years outside the source's
+  coverage are handled. Accepts `"nearest"` (closest available year, at either
+  end), `"latest"` (most recent), a concrete year, or `None` to disable the
+  fallback. The source's actual coverage is queried, so it stays correct as new
+  datasets are added. (#2)
+
+### Changed
+
+- Years outside the source's product coverage (e.g. before 2017 or after 2023)
+  are now clamped to an available layer by default (`anchor_year="nearest"`)
+  instead of raising, while the vegetation indices carry the seasonality.
+  Covered years always keep their own real layer; out-of-coverage years are
+  reported in a single warning naming the coverage, the year→layer mapping, and
+  how to disable the fallback (`anchor_year=None`). (#2)
+- A dataset that carries a fixed year (e.g. `agbd_2023`) is now accepted over a
+  multi-year range and pins every year to that single layer (with a warning),
+  instead of raising `ValueError`. (#2)
+- `DLRBiomassSource.load_data` now persists the projection that `cubo` reports
+  in `attrs["epsg"]` onto the dataset via `rio.write_crs`, so downstream
+  consumers see a populated `rio.crs`. (#1)
+- The footprint CRS fallback derives the UTM zone from the requested center
+  (the same zone `cubo` selects) instead of a fixed zone, so no projection is
+  ever hardcoded. (#1)
 
 ### Fixed
 
@@ -20,15 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   present. `FootprintProcessor.compute_footprint_weights` now resolves the data
   CRS in order of preference: `data.rio.crs`, then cubo's `attrs["epsg"]`, then
   the UTM zone derived from the requested center. (#1)
-
-### Changed
-
-- `DLRBiomassSource.load_data` now persists the projection that `cubo` reports
-  in `attrs["epsg"]` onto the dataset via `rio.write_crs`, so downstream
-  consumers see a populated `rio.crs`.
-- The footprint CRS fallback derives the UTM zone from the requested center
-  (the same zone `cubo` selects) instead of a fixed zone, so no projection is
-  ever hardcoded.
 
 ## [0.2.2] - 2026-06-03
 
@@ -132,17 +150,3 @@ Initial public release.
 - Seasonal interpolation through remote-sensing vegetation indices (VIs).
 - `ruff` linting, MIT License, and a README with usage examples and API
   reference.
-
-[Unreleased]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.2.2...HEAD
-[0.2.2]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.2.1...v0.2.2
-[0.2.1]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.2.0...v0.2.1
-[0.2.0]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.9...v0.2.0
-[0.1.9]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.8...v0.1.9
-[0.1.8]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.7...v0.1.8
-[0.1.7]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.6...v0.1.7
-[0.1.6]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.5...v0.1.6
-[0.1.5]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.4...v0.1.5
-[0.1.4]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.3...v0.1.4
-[0.1.3]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.2...v0.1.3
-[0.1.2]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/compare/v0.1.1...v0.1.2
-[0.1.1]: https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/tags/v0.1.1

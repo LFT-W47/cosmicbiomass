@@ -328,17 +328,49 @@ def _coerce_year(value: int | str | date | datetime) -> int:
     raise ValueError(f"Unsupported date/year value: {value!r}")
 
 
-def _build_dataset_id(dataset: str, year: int, multiple_years: bool) -> str:
-    """Build a dataset id for a given year."""
+def _build_dataset_id(dataset: str, year: int) -> str:
+    """Build a dataset id for a given year.
+
+    A template ("agbd_{year}") is filled with ``year``; a dataset that already
+    carries a fixed 4-digit year is returned unchanged -- which lets it anchor
+    every year of a multi-year range to one product layer; otherwise the year
+    is appended.
+    """
     if "{year}" in dataset:
         return dataset.format(year=year)
     if re.search(r"\d{4}", dataset):
-        if multiple_years:
-            raise ValueError(
-                "Dataset includes a fixed year. Use a template like 'agbd_{year}' for ranges."
-            )
         return dataset
     return f"{dataset}_{year}"
+
+
+def _available_years(source: str, data_dir: str) -> list[int] | None:
+    """Sorted product years a source exposes, or None if it tags none by year."""
+    available = list_available_datasets(source=source, data_dir=data_dir)
+    years = sorted(
+        int(match.group(0))
+        for key in available.get("datasets", {})
+        if (match := re.search(r"\d{4}", key))
+    )
+    return years or None
+
+
+def _resolve_anchor_for_year(
+    anchor_year: int | str, year: int, available_years: list[int]
+) -> int:
+    """Resolve the product year an out-of-coverage ``year`` should fall back to.
+
+    ``anchor_year`` may be:
+      - ``"nearest"``: the closest available year (ties prefer the newer year),
+      - ``"latest"``: the most recent available year,
+      - a concrete year (int or year-like string).
+    """
+    if isinstance(anchor_year, str):
+        key = anchor_year.strip().lower()
+        if key == "nearest":
+            return min(available_years, key=lambda a: (abs(a - year), -a))
+        if key == "latest":
+            return max(available_years)
+    return _coerce_year(anchor_year)
 
 
 def _infer_target_index(
@@ -392,6 +424,7 @@ def get_average_biomass_timeseries(
     outlier_method: str | None = None,
     return_format: str = "dataframe",
     *,
+    anchor_year: int | str | None = "nearest",
     output_units: str = "Mg/ha",
     timestamp_index: bool = False,
     reference_index: pd.DatetimeIndex | None = None,
@@ -413,6 +446,14 @@ def get_average_biomass_timeseries(
         footprint_shape: Shape of footprint ("crns", "circular" or "gaussian")
         include_uncertainty: Whether to include uncertainty statistics
         outlier_method: Outlier detection method ("iqr", "zscore", or None)
+        anchor_year: Fallback product year for years the source does not cover
+            (e.g. records beyond 2017-2023). Covered years always use their own
+            layer; only out-of-coverage years fall back, and a single warning
+            reports the mapping. Accepts "nearest" (default; the closest
+            available year, at either end), "latest" (the most recent), or a
+            concrete year. Pass None to disable the fallback so out-of-coverage
+            years raise instead. To pin every year to one layer, pass a fixed
+            dataset (e.g. dataset="agbd_2023").
         output_units: Output units ("Mg/ha" or "kg/m^2")
         timestamp_index: Return a DatetimeIndex when True
         reference_index: Optional DatetimeIndex to align annual values to
@@ -429,11 +470,52 @@ def get_average_biomass_timeseries(
         raise ValueError("start_time must be <= end_time")
 
     years = range(start_year, end_year + 1)
-    multiple_years = start_year != end_year
+
+    # A template/bare dataset resolves per year, so out-of-coverage years can be
+    # clamped to an available one; a fixed-year dataset ignores the year and is
+    # left untouched (it pins every year to that single layer by design).
+    dataset_uses_year = "{year}" in dataset or not re.search(r"\d{4}", dataset)
+    available_years = (
+        _available_years(source, data_dir)
+        if anchor_year is not None and dataset_uses_year
+        else None
+    )
+
+    # Resolve which product layer each requested year maps to, collecting any
+    # out-of-coverage years so they can be reported in a single clear warning.
+    build_years: dict[int, int] = {}
+    clamps: dict[int, int] = {}
+    for year in years:
+        if (
+            anchor_year is not None
+            and available_years is not None
+            and year not in available_years
+        ):
+            build_years[year] = _resolve_anchor_for_year(
+                anchor_year, year, available_years
+            )
+            clamps[year] = build_years[year]
+        else:
+            build_years[year] = year
+
+    if clamps:
+        coverage = f"{available_years[0]}-{available_years[-1]}"  # type: ignore[index]
+        mapping = ", ".join(f"{y}->{a}" for y, a in clamps.items())
+        logger.warning(
+            "Year(s) outside the %r product coverage (%s) were anchored to an "
+            "available layer (anchor_year=%r): %s. AGBD is held at the anchor "
+            "year for these, so only the VI seasonality varies -- treat them as "
+            "extrapolations. Pass anchor_year=None to disable this fallback.",
+            source,
+            coverage,
+            anchor_year,
+            mapping,
+        )
+
     series: list[dict[str, Any]] = []
 
     for year in years:
-        dataset_id = _build_dataset_id(dataset, year, multiple_years)
+        dataset_id = _build_dataset_id(dataset, build_years[year])
         result = get_average_biomass(
             lat=lat,
             lon=lon,
@@ -521,6 +603,7 @@ def get_average_biomass_timeseries(
     df.attrs["datasets"] = dict(zip(years_index, datasets_index, strict=False))
     df.attrs["source"] = source
     df.attrs["dataset_template"] = dataset
+    df.attrs["anchor_year"] = anchor_year
     df.attrs["output_units"] = output_units
     df.attrs["timestamp_index"] = timestamp_index
     df.attrs["reference_index_used"] = reference_index is not None
@@ -546,6 +629,7 @@ def get_seasonal_biomass_timeseries(
     reference_index: pd.DatetimeIndex | None = None,
     baseline_fraction: float = 0.8,
     *,
+    anchor_year: int | str | None = "nearest",
     output_units: str = "Mg/ha",
     **kwargs,
 ) -> pd.DataFrame:
@@ -572,6 +656,10 @@ def get_seasonal_biomass_timeseries(
         target_frequency: Optional pandas frequency (e.g., "1H", "1D"). If None, auto-detect.
         reference_index: Optional DatetimeIndex (e.g., Neptoon index) for auto alignment.
         baseline_fraction: Annual baseline fraction (0..1). VI modulates the remaining fraction.
+        anchor_year: Fallback product year for years outside the source's
+            coverage ("nearest" (default), "latest", or a concrete year);
+            covered years keep their own layer. Pass None to disable the
+            fallback so out-of-coverage years raise instead.
         output_units: Output units ("Mg/ha" or "kg/m^2")
         **kwargs: Additional configuration parameters
 
@@ -734,6 +822,7 @@ def get_seasonal_biomass_timeseries(
         footprint_shape=footprint_shape,
         include_uncertainty=include_uncertainty,
         outlier_method=outlier_method,
+        anchor_year=anchor_year,
         output_units="Mg/ha",
         **kwargs,
     )

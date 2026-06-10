@@ -11,8 +11,10 @@ import xarray as xr
 
 from cosmicbiomass.config import FootprintConfig
 from cosmicbiomass.core import (
+    _build_dataset_id,
     get_average_biomass,
     get_average_biomass_timeseries,
+    get_seasonal_biomass_timeseries,
     list_available_datasets,
     validate_coordinates,
 )
@@ -523,3 +525,209 @@ class TestListAvailableDatasets:
         # Verify calls
         mock_get_source.assert_called_once()
         mock_data_source.get_available_datasets.assert_called_once()
+
+
+def _summary(mean: float = 100.0) -> dict:
+    return {
+        "summary": {
+            "mean_biomass": mean,
+            "std_biomass": 12.0,
+            "uncertainty": 10.0,
+            "uncertainty_source": "data_spread",
+            "pixel_count": 25,
+        }
+    }
+
+
+class TestAnchorYear:
+    """Issue #2: anchor AGBD to a fixed product year across a multi-year range.
+
+    The DLR AGBD product covers 2017-2023. For records extending into 2024+
+    there is no per-year layer, so callers need a way to pin the slowly-varying
+    AGBD to an available year while the VIs carry the seasonality -- instead of
+    a hard error.
+    """
+
+    def test_build_dataset_id_fixed_year_over_range_does_not_raise(self):
+        # A fixed-year dataset is now allowed across a multi-year range; it
+        # anchors every loop year to that single product layer.
+        assert _build_dataset_id("agbd_2023", 2024) == "agbd_2023"
+        assert _build_dataset_id("agbd_2023", 2025) == "agbd_2023"
+
+    def test_build_dataset_id_template_and_bare(self):
+        assert _build_dataset_id("agbd_{year}", 2024) == "agbd_2024"
+        assert _build_dataset_id("agbd", 2024) == "agbd_2024"
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_fixed_dataset_over_multi_year_anchors(self, mock_get_average):
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_2023",
+            start_time=2024,
+            end_time=2025,
+        )
+
+        assert df.attrs["datasets"] == {2024: "agbd_2023", 2025: "agbd_2023"}
+        used = {call.kwargs["dataset"] for call in mock_get_average.call_args_list}
+        assert used == {"agbd_2023"}
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_anchor_year_int_with_template(self, mock_get_average):
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2024,
+            end_time=2025,
+            anchor_year=2023,
+        )
+
+        assert df.attrs["anchor_year"] == 2023
+        assert df.attrs["datasets"] == {2024: "agbd_2023", 2025: "agbd_2023"}
+        used = {call.kwargs["dataset"] for call in mock_get_average.call_args_list}
+        assert used == {"agbd_2023"}
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_anchor_year_latest_resolves_to_max_available(self, mock_get_average):
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2024,
+            end_time=2025,
+            anchor_year="latest",
+        )
+
+        # DLR product's latest available year is 2023; the raw spec is kept.
+        assert df.attrs["anchor_year"] == "latest"
+        assert df.attrs["datasets"] == {2024: "agbd_2023", 2025: "agbd_2023"}
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_anchor_nearest_clamps_below_coverage(self, mock_get_average):
+        # Earliest DLR layer is 2017 -> 2014/2015 clamp up to 2017.
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2014,
+            end_time=2015,
+            anchor_year="nearest",
+        )
+
+        assert df.attrs["datasets"] == {2014: "agbd_2017", 2015: "agbd_2017"}
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_anchor_nearest_keeps_covered_years_in_mixed_range(self, mock_get_average):
+        # Covered years keep their real layer; only out-of-coverage years clamp
+        # to the nearest available year (2024 -> 2023).
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2021,
+            end_time=2025,
+            anchor_year="nearest",
+        )
+
+        assert df.attrs["datasets"] == {
+            2021: "agbd_2021",
+            2022: "agbd_2022",
+            2023: "agbd_2023",
+            2024: "agbd_2023",
+            2025: "agbd_2023",
+        }
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_default_clamps_out_of_coverage_to_nearest(self, mock_get_average):
+        # The default is "nearest": out-of-coverage years are clamped without
+        # the caller having to opt in.
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2024,
+            end_time=2024,
+        )
+
+        assert df.attrs["anchor_year"] == "nearest"
+        assert df.attrs["datasets"] == {2024: "agbd_2023"}
+
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_anchor_none_disables_clamping(self, mock_get_average):
+        # anchor_year=None is the explicit opt-out: the year passes through
+        # unchanged (and would raise downstream when the layer is fetched).
+        mock_get_average.return_value = _summary()
+
+        df = get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2024,
+            end_time=2024,
+            anchor_year=None,
+        )
+
+        assert df.attrs["datasets"] == {2024: "agbd_2024"}
+        assert df.attrs["anchor_year"] is None
+
+    @patch("cosmicbiomass.core.logger")
+    @patch("cosmicbiomass.core.get_average_biomass")
+    def test_clamping_emits_single_clear_warning(self, mock_get_average, mock_logger):
+        # One consolidated warning naming the coverage, the year->layer mapping,
+        # and how to disable the fallback.
+        mock_get_average.return_value = _summary()
+
+        get_average_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2023,
+            end_time=2025,
+        )
+
+        warnings = [str(c.args) for c in mock_logger.warning.call_args_list]
+        assert len(mock_logger.warning.call_args_list) == 1
+        msg = mock_logger.warning.call_args.args[0] % mock_logger.warning.call_args.args[1:]
+        assert "2017-2023" in msg  # coverage
+        assert "2024" in msg and "2025" in msg  # clamped years
+        assert "2023" in msg  # the layer they map to
+        assert "anchor_year=None" in msg  # how to disable
+        assert "2023" in warnings[0]
+
+    @patch("cosmicbiomass.core.get_average_biomass_timeseries")
+    def test_seasonal_passes_anchor_year_through(self, mock_timeseries):
+        index = pd.date_range("2024-01-01", "2025-12-31", freq="1D")
+        values = np.sin(np.linspace(0, 4 * np.pi, len(index))) * 0.4 + 0.6
+        vi = pd.DataFrame(
+            {"lai": values * 3.0, "evi": values * 0.8, "ndvi": values * 0.7},
+            index=index,
+        )
+        mock_timeseries.return_value = [
+            {"year": 2024, "dataset": "agbd_2023", "result": _summary()},
+            {"year": 2025, "dataset": "agbd_2023", "result": _summary()},
+        ]
+
+        get_seasonal_biomass_timeseries(
+            lat=52.0866,
+            lon=11.2221,
+            dataset="agbd_{year}",
+            start_time=2024,
+            end_time=2025,
+            vi=vi,
+            anchor_year=2023,
+        )
+
+        assert mock_timeseries.call_args.kwargs["anchor_year"] == 2023
