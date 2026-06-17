@@ -330,9 +330,9 @@ print(seasonal.head())
 
 ## Data Sources
 
-### DLR Global Aboveground Biomass Density
+### DLR Aboveground Biomass Density (Germany)
 
-- **Coverage**: 2017-2023 annual products
+- **Coverage**: Germany only, 2017-2023 annual products
 - **Resolution**: 10m spatial resolution
 - **Units**: Mg/ha (megagrams per hectare)
 - **Uncertainty**: Available via data spread analysis

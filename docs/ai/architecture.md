@@ -11,7 +11,7 @@ Quick-reference map of the codebase for new sessions and new contributors.
 | `config.py` | Pydantic config models: `BiomassConfig`, `FootprintConfig` |
 | `registry.py` | `SourceRegistry` + `register_source` — register/resolve pluggable data sources |
 | `sources/base.py` | `BiomassDataSource` ABC + `DatasetInfo` model (the source contract) |
-| `sources/dlr.py` | `DLRBiomassSource` — DLR Global AGBD (2017–2023) via STAC + `cubo` |
+| `sources/dlr.py` | `DLRBiomassSource` — DLR AGBD for Germany (2017–2023) via STAC + `cubo` |
 | `sources/vi.py` | `fetch_vi_timeseries` — vegetation indices (LAI via Earth Engine; EVI/NDVI via Planetary Computer / `stackstac`) |
 | `processing/footprint.py` | `FootprintProcessor.compute_footprint_weights` (circular/gaussian/CRNS) + `validate_footprint_coverage` |
 | `processing/statistics.py` | `StatisticsProcessor` + `BiomassStatistics` — footprint-weighted stats, uncertainty, outlier detection |

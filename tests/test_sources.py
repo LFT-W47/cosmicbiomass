@@ -460,7 +460,7 @@ class TestDLRBiomassSource:
         assert dataset_info["id"] == "agbd_2020"
         assert dataset_info["name"] == "AGBD 2020"
         assert (
-            dataset_info["description"] == "DLR Global Aboveground Biomass Density 2020"
+            dataset_info["description"] == "DLR Germany Aboveground Biomass Density 2020"
         )
         assert dataset_info["spatial_resolution"] == 10.0
         assert dataset_info["temporal_coverage"] == "2020-01-01/2020-12-31"

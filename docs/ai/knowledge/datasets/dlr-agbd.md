@@ -10,16 +10,22 @@ must know about.
 | Property | Value |
 |----------|-------|
 | STAC endpoint | `https://geoservice.dlr.de/eoc/ogc/stac/v1` |
-| Collection | `FOREST_STRUCTURE_DE_AGBD_P1Y` |
+| Collection | `FOREST_STRUCTURE_DE_AGBD_P1Y` (`DE` = Germany) |
+| Coverage | **Germany only** (collection id `..._DE_...` is authoritative) |
 | Datasets | `agbd_2017` … `agbd_2023` (one annual product per year) |
 | Spatial resolution | 10 m |
 | Units | `Mg/ha` (megagrams per hectare) |
 | Data format | GeoTIFF COG, processing level L3 |
 | Uncertainty | Reported as available per `DatasetInfo`; see band detection below |
 
-> TODO: The collection id and `DatasetInfo.crs` (`EPSG:32632`, UTM 32N) imply **German**
-> coverage, but the README/docstrings call this "DLR **Global** Aboveground Biomass Density".
-> Confirm the true geographic extent and align the wording.
+### Geographic coverage
+
+The product covers **Germany only** — the collection id (`..._DE_...`) is authoritative.
+Earlier code descriptions and `README.md` called it "DLR **Global** Aboveground Biomass
+Density"; that wording was a misnomer and was corrected to "Germany" (2026-06-17). Because
+Germany spans two UTM zones, a loaded window's CRS is **32N for most of the country and 33N for
+the east** — see the CRS caveat below. Other regions would be added as separate sources via the
+[registry](../systems/data-source-registry.md), not by widening this one.
 
 ## How a window is loaded
 
@@ -37,9 +43,12 @@ must know about.
 
 ### CRS caveat
 
-`DatasetInfo.crs` is a nominal `EPSG:32632`, but the **real** CRS of a loaded window is whatever
-UTM zone `cubo` picks for the requested centre. Always trust `data.rio.crs` /
-`attrs["epsg"]` over the static `DatasetInfo.crs`. See
+`DatasetInfo.crs` is a nominal `EPSG:32632` (UTM 32N) hardcoded for every dataset, but the
+**real** CRS of a loaded window is whatever UTM zone `cubo` picks for the requested centre —
+**32N (EPSG:32632) for most of Germany, 33N (EPSG:32633) for the east** (roughly east of 12° E).
+Always trust `data.rio.crs` / `attrs["epsg"]` over the static `DatasetInfo.crs`. Hardcoding 32N
+in the footprint step was the 0.2.3 bug (issue #1): it returned **0 pixels** for eastern-German
+sites. See
 [`../concepts/crns-footprint-weighting.md`](../concepts/crns-footprint-weighting.md) for why this
 matters.
 

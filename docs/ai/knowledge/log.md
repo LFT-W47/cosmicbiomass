@@ -19,6 +19,13 @@ Newest entries go at the top.
 - Linked `path/to/file.md` ↔ `path/to/other.md` — short note on the new connection.
 ```
 
+## 2026-06-17
+
+- Updated `knowledge/datasets/dlr-agbd.md` — resolved the coverage/CRS TODO. Confirmed (by the
+  maintainer) the dataset is **Germany only**, not "Global"; the real CRS spans UTM 32N
+  (EPSG:32632) and 33N (EPSG:32633, eastern Germany). Documented the "Global" wording as a
+  misnomer in the code/README.
+
 ## 2026-06-16
 
 - Added `knowledge/concepts/crns-footprint-weighting.md` — CRNS/Schrön (2017) footprint shapes

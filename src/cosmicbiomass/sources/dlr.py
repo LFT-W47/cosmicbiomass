@@ -1,4 +1,8 @@
-"""DLR Global Aboveground Biomass Density data source implementation."""
+"""DLR Aboveground Biomass Density data source implementation.
+
+Covers Germany only (STAC collection ``FOREST_STRUCTURE_DE_AGBD_P1Y``). Additional
+regions/sources can be registered separately via the source registry.
+"""
 
 import logging
 from typing import Any
@@ -14,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class DLRBiomassSource(BiomassDataSource):
-    """DLR Global Aboveground Biomass Density data source using STAC."""
+    """DLR Aboveground Biomass Density data source (Germany only) using STAC."""
 
     def __init__(self, config: BiomassConfig):
         super().__init__(config)
@@ -33,7 +37,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2017": DatasetInfo(
                 id="agbd_2017",
                 name="AGBD 2017",
-                description="DLR Global Aboveground Biomass Density 2017",
+                description="DLR Germany Aboveground Biomass Density 2017",
                 spatial_resolution=10.0,
                 temporal_coverage="2017-01-01/2017-12-31",
                 units="Mg/ha",
@@ -43,7 +47,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2018": DatasetInfo(
                 id="agbd_2018",
                 name="AGBD 2018",
-                description="DLR Global Aboveground Biomass Density 2018",
+                description="DLR Germany Aboveground Biomass Density 2018",
                 spatial_resolution=10.0,
                 temporal_coverage="2018-01-01/2018-12-31",
                 units="Mg/ha",
@@ -53,7 +57,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2019": DatasetInfo(
                 id="agbd_2019",
                 name="AGBD 2019",
-                description="DLR Global Aboveground Biomass Density 2019",
+                description="DLR Germany Aboveground Biomass Density 2019",
                 spatial_resolution=10.0,
                 temporal_coverage="2019-01-01/2019-12-31",
                 units="Mg/ha",
@@ -63,7 +67,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2020": DatasetInfo(
                 id="agbd_2020",
                 name="AGBD 2020",
-                description="DLR Global Aboveground Biomass Density 2020",
+                description="DLR Germany Aboveground Biomass Density 2020",
                 spatial_resolution=10.0,
                 temporal_coverage="2020-01-01/2020-12-31",
                 units="Mg/ha",
@@ -73,7 +77,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2021": DatasetInfo(
                 id="agbd_2021",
                 name="AGBD 2021",
-                description="DLR Global Aboveground Biomass Density 2021",
+                description="DLR Germany Aboveground Biomass Density 2021",
                 spatial_resolution=10.0,
                 temporal_coverage="2021-01-01/2021-12-31",
                 units="Mg/ha",
@@ -83,7 +87,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2022": DatasetInfo(
                 id="agbd_2022",
                 name="AGBD 2022",
-                description="DLR Global Aboveground Biomass Density 2022",
+                description="DLR Germany Aboveground Biomass Density 2022",
                 spatial_resolution=10.0,
                 temporal_coverage="2022-01-01/2022-12-31",
                 units="Mg/ha",
@@ -93,7 +97,7 @@ class DLRBiomassSource(BiomassDataSource):
             "agbd_2023": DatasetInfo(
                 id="agbd_2023",
                 name="AGBD 2023",
-                description="DLR Global Aboveground Biomass Density 2023",
+                description="DLR Germany Aboveground Biomass Density 2023",
                 spatial_resolution=10.0,
                 temporal_coverage="2023-01-01/2023-12-31",
                 units="Mg/ha",
