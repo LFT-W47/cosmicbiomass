@@ -1,5 +1,9 @@
 # CosmicBiomass
 
+[![PyPI version](https://img.shields.io/pypi/v/cosmicbiomass.svg)](https://pypi.org/project/cosmicbiomass/)
+[![License](https://img.shields.io/pypi/l/cosmicbiomass.svg)](https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/blob/main/LICENSE)
+[![PyPI Downloads](https://static.pepy.tech/badge/cosmicbiomass)](https://pepy.tech/projects/cosmicbiomass)
+
 A modern Python package for extracting and analyzing aboveground biomass density (AGBD) from satellite data sources with support for geospatial footprint weighting and statistical analysis.
 
 Most users will want to attach annual AGBD to an existing higher-frequency time series.
