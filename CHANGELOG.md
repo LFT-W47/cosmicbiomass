@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > API should not be considered stable. Per SemVer clause 4, a minor version bump
 > may include backwards-incompatible changes.
 
+## [0.2.4] - 2026-10-14
+
+Final release. cosmicbiomass is deprecated and no longer maintained; its
+functionality continues in the remote-sensing module of
+[neptoon](https://codebase.helmholtz.cloud/cosmos/neptoon).
+
+### Deprecated
+
+- The whole package. Importing `cosmicbiomass` now emits a `FutureWarning`
+  naming neptoon as the successor and the unit difference (neptoon reports
+  kg/m², cosmicbiomass Mg/ha by default).
+
+### Changed
+
+- README opens with a deprecation notice and a migration example.
+- Package metadata: `Development Status :: 7 - Inactive` and a `Successor` URL.
+
 ## [0.2.3] - 2026-06-10
 
 ### Added

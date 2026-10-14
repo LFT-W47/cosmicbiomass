@@ -1,7 +1,7 @@
 [project]
 name = "cosmicbiomass"
-version = "0.2.3"
-description = "Aboveground biomass extraction with footprint-weighted statistics."
+version = "0.2.4"
+description = "Deprecated: superseded by the remote-sensing module of neptoon. Aboveground biomass extraction with footprint-weighted statistics."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
@@ -10,7 +10,7 @@ authors = [
 requires-python = ">=3.10"
 keywords = ["biomass", "agbd", "geospatial", "remote-sensing", "crns", "stac"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 7 - Inactive",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -49,6 +49,7 @@ dependencies = [
 Homepage = "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass"
 Repository = "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass"
 Issues = "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/issues"
+Successor = "https://codebase.helmholtz.cloud/cosmos/neptoon"
 
 [dependency-groups]
 dev = [

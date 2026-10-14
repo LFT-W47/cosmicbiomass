@@ -4,6 +4,51 @@
 [![License](https://img.shields.io/pypi/l/cosmicbiomass.svg)](https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass/-/blob/main/LICENSE)
 [![PyPI Downloads](https://static.pepy.tech/badge/cosmicbiomass)](https://pepy.tech/projects/cosmicbiomass)
 
+## Deprecated
+
+> **cosmicbiomass is no longer maintained. 0.2.4 is the final release.**
+> Its functionality continues in the remote-sensing module of
+> [neptoon](https://codebase.helmholtz.cloud/cosmos/neptoon) ([docs](https://www.neptoon.org)),
+> the CRNS processing toolbox it was written for. Importing cosmicbiomass shows a
+> `FutureWarning` pointing here.
+
+What neptoon adds over cosmicbiomass: the same Schrön et al. (2017) footprint weighting,
+the DLR forest-structure map (Germany, 10 m) **and** ESA CCI Biomass (global, 100 m),
+coverage checks before anything is downloaded, provenance and citation for every value, and
+biomass as an input to the neutron correction.
+
+**Migrating.** Install `neptoon[geo]` and attach biomass to any time index:
+
+```python
+import pandas as pd
+from neptoon.external.remote_sensing import (
+    RemoteSensingAttachmentConfig,
+    attach_remote_sensing_data,
+)
+
+index = pd.date_range("2020-01-01", "2021-12-31", freq="1D", tz="UTC")
+config = RemoteSensingAttachmentConfig(
+    latitude=52.0866,
+    longitude=11.2224,
+    product="dlr_forest_structure_agbd",  # or "esa_cci_biomass_v6" outside Germany
+    variables=("above_ground_biomass",),
+)
+result = attach_remote_sensing_data(pd.DataFrame(index=index), config)
+biomass = result.data_frame["rs_above_ground_biomass"]  # kg/m2, footprint-weighted
+```
+
+Two differences to watch:
+
+- **Units:** neptoon reports **kg/m²**, cosmicbiomass reported Mg/ha by default
+  (1 kg/m² = 10 Mg/ha).
+- **Configuration instead of calls:** in a neptoon sensor YAML the same request is a
+  `remote_sensing:` entry; `neptoon rs check` shows which product covers your site before a
+  run.
+
+The documentation below describes cosmicbiomass as it was and is kept for reference.
+
+---
+
 A modern Python package for extracting and analyzing aboveground biomass density (AGBD) from satellite data sources with support for geospatial footprint weighting and statistical analysis.
 
 Most users will want to attach annual AGBD to an existing higher-frequency time series.

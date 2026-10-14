@@ -1,15 +1,18 @@
 # Project State
 
-Last updated: 2026-06-16
+Last updated: 2026-10-14
 
 ## Current priorities
 
-- TODO: What is actively in flight? The working tree is clean at `main` (v0.2.3) with the two
-  most recent bugfixes released, so there is no obvious in-progress work to infer from the
-  repo. Maintainer to fill in current focus.
+- **Frozen.** cosmicbiomass is deprecated; 0.2.4 is the final release. Its functionality
+  continues in the remote-sensing module of neptoon
+  (https://codebase.helmholtz.cloud/cosmos/neptoon). No new features; at most a fix that
+  keeps the final release installable. Importing the package emits a `FutureWarning`.
 
 ## Recent changes
 
+- 2026-10-14: **v0.2.4** — final release: deprecation `FutureWarning` on import, README
+  migration notice to neptoon, `Development Status :: 7 - Inactive`.
 - 2026-06-10: **v0.2.3** — out-of-coverage years are clamped to an available layer by default
   (`anchor_year="nearest"`) instead of raising; footprint CRS is now resolved dynamically
   rather than hardcoded to `EPSG:32632`. See `CHANGELOG.md` (issues #1, #2).

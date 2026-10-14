@@ -4,6 +4,10 @@ CosmicBiomass is a Python library for extracting footprint-weighted aboveground 
 density (AGBD) from satellite data sources (DLR Global AGBD via STAC/`cubo`), with circular,
 Gaussian, and CRNS footprint weighting and statistical analysis.
 
+> **Deprecated and frozen (2026-10-14).** 0.2.4 is the final release; the functionality lives
+> on in neptoon's remote-sensing module (https://codebase.helmholtz.cloud/cosmos/neptoon).
+> Do not add features here.
+
 This is the universal entry point for coding agents working on this repo. Read it first.
 Deeper material lives under [`docs/ai/`](docs/ai/) — this file points there rather than
 repeating it.

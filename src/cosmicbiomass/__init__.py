@@ -21,8 +21,23 @@ from .processing import BiomassStatistics, FootprintProcessor, StatisticsProcess
 from .registry import list_available_sources, register_source
 from .sources import BiomassDataSource, DLRBiomassSource
 
+#: Shown once per session on import. A FutureWarning rather than a
+#: DeprecationWarning: the audience is scientists running scripts and notebooks,
+#: and a DeprecationWarning raised during import is attributed to the import
+#: machinery, so Python's default filters would hide it from exactly them.
+DEPRECATION_MESSAGE = (
+    "cosmicbiomass is deprecated and no longer maintained; 0.2.4 is its final "
+    "release. Its functionality continues in neptoon's remote-sensing module "
+    '(pip install "neptoon[geo]"), which serves footprint-weighted biomass from '
+    "the DLR (Germany, 10 m) and ESA CCI (global, 100 m) maps with coverage "
+    "checks and provenance. Note that neptoon reports biomass in kg/m2, not "
+    "Mg/ha (1 kg/m2 = 10 Mg/ha). Migration: "
+    "https://codebase.helmholtz.cloud/louis-ferdinand.trinkle/cosmicbiomass#deprecated"
+)
+warnings.warn(DEPRECATION_MESSAGE, FutureWarning, stacklevel=2)
+
 # Package metadata
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 __author__ = "LFT-W47"
 __email__ = "louis.trinkle@gmail.com"
 
